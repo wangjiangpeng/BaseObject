@@ -10,9 +10,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
+ * 任务线程池
+ *
  * Created by wangjiangpeng01 on 2016/12/19.
  */
-public class TaskPool {
+public class TaskThreadPool {
 
     private static final int CPU_COUNT = Runtime.getRuntime().availableProcessors();
     private static final int CORE_POOL_SIZE = CPU_COUNT + 1;
@@ -24,18 +26,18 @@ public class TaskPool {
     private final Executor mThreadPoolExecutor;
     private final Executor mSerialExecutor;
 
-    private static TaskPool mTaskPool;
+    private static TaskThreadPool mTaskPool;
 
     /**
      * 单例
      *
      * @return
      */
-    public static TaskPool getInstance() {
+    public static TaskThreadPool getInstance() {
         if (mTaskPool == null) {
-            synchronized (TaskPool.class) {
+            synchronized (TaskThreadPool.class) {
                 if (mTaskPool == null) {
-                    mTaskPool = new TaskPool();
+                    mTaskPool = new TaskThreadPool();
                 }
             }
         }
@@ -43,7 +45,7 @@ public class TaskPool {
         return mTaskPool;
     }
 
-    private TaskPool() {
+    private TaskThreadPool() {
         mThreadFactory = new ThreadFactory() {
             private final AtomicInteger mCount = new AtomicInteger(1);
 
@@ -57,12 +59,21 @@ public class TaskPool {
         mSerialExecutor = new SerialExecutor();
     }
 
-    public static void execute(ATask task, Object... objs) {
-        task.preExecute(objs);
-        getInstance().mSerialExecutor.execute(task.mFuture);
+    /**
+     * 执行线程
+     *
+     * @param runnable
+     */
+    public static void execute(Runnable runnable) {
+        getInstance().mThreadPoolExecutor.execute(runnable);
     }
 
-    public static void execute(Runnable runnable) {
+    /**
+     * 顺序执行线程
+     *
+     * @param runnable
+     */
+    public static void executeSerial(Runnable runnable) {
         getInstance().mSerialExecutor.execute(runnable);
     }
 

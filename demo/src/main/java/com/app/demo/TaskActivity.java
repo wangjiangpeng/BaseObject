@@ -6,12 +6,14 @@ import android.util.Log;
 import android.widget.TextView;
 
 import base.library.task.ATask;
-import base.library.task.TaskPool;
+import base.library.task.ResultReceiver;
 
 /**
+ * 测试
+ *
  * Created by wangjiangpeng01 on 2016/12/21.
  */
-public class TaskActivity extends Activity {
+public class TaskActivity extends Activity implements ResultReceiver{
 
     private static final String TAG = "TaskActivity";
 
@@ -23,24 +25,40 @@ public class TaskActivity extends Activity {
         tv.setText("TaskActivity");
         setContentView(tv);
 
-        TaskPool.execute(new Task(), "task params");
+        Task[] task = new Task[10];
+        for(int i = 0 ; i < 10 ; i++){
+            task[i] = new Task();
+            task[i].execute(this,i);
+        }
+        task[2].cancel(true);
+        task[9].cancel(true);
+
     }
 
-    private class Task extends ATask<String ,String> {
+    @Override
+    public void receiver(ATask task, Object e) {
+        if(task instanceof Task){
+            String str = (String)e;
+            Log.e(TAG, "receiver:"+str);
+        }
+    }
+
+    private static class Task extends ATask<String ,String> {
+
+        private int i;
 
         @Override
         protected String doInBackground(Object... objs) {
-            Object[] os = objs;
-            Log.e(TAG, "doInBackground" + (String)os[0]);
+            i = (int)objs[0];
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
 
-            return "Task";
+            return "Task:"+i;
         }
 
-        @Override
-        protected void onPostExecute(String s) {
-            super.onPostExecute(s);
-
-            Log.e(TAG, "onPostExecute:"+s);
-        }
     }
+
 }

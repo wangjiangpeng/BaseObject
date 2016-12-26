@@ -7,6 +7,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.Process;
 
+import java.lang.ref.WeakReference;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -14,6 +15,8 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
+ * 抽象任务
+ *
  * Created by wangjiangpeng01 on 2016/12/19.
  */
 public abstract class ATask<Progress, Result>{
@@ -49,6 +52,11 @@ public abstract class ATask<Progress, Result>{
 
     private final AtomicBoolean mCancelled;
     private final AtomicBoolean mTaskInvoked;
+
+    /**
+     * 弱引用，防止对象无法释放
+     */
+    private WeakReference<ResultReceiver> weakReceiver;
 
     public ATask(){
         mStatus = Status.PENDING;
@@ -108,7 +116,7 @@ public abstract class ATask<Progress, Result>{
         return sHandler;
     }
 
-    protected final void preExecute(Object... objs) {
+    protected final void preExecute(ResultReceiver receiver, Object... objs) {
         if (mStatus != Status.PENDING) {
             switch (mStatus) {
                 case RUNNING:
@@ -120,9 +128,9 @@ public abstract class ATask<Progress, Result>{
                             + "(a task can be executed only once)");
             }
         }
-        mStatus = ATask.Status.RUNNING;
-
+        mStatus = Status.RUNNING;
         mWorker.mParams = objs;
+        weakReceiver = new WeakReference(receiver);
 
         onPreExecute();
     }
@@ -139,8 +147,13 @@ public abstract class ATask<Progress, Result>{
     protected final void finish(Result result) {
         if (isCancelled()) {
             onCancelled(result);
+
         } else {
             onPostExecute(result);
+
+            if(weakReceiver.get() != null){
+                weakReceiver.get().receiver(this, result);
+            }
         }
         mStatus = Status.FINISHED;
     }
@@ -177,6 +190,26 @@ public abstract class ATask<Progress, Result>{
 
     protected abstract Result doInBackground(Object... objs);
 
+    /**
+     * 执行任务
+     *
+     * @param objs
+     */
+    public void execute(ResultReceiver receiver, Object... objs) {
+        preExecute(receiver, objs);
+        TaskThreadPool.execute(mFuture);
+    }
+
+    /**
+     * 顺序执行任务，有依赖关系的任务可调用此方法
+     *
+     * @param objs
+     */
+    public void executeSerial(ResultReceiver receiver, Object... objs) {
+        preExecute(receiver, objs);
+        TaskThreadPool.executeSerial(mFuture);
+    }
+
     private static class InternalHandler extends Handler {
 
         public InternalHandler() {
@@ -197,7 +230,6 @@ public abstract class ATask<Progress, Result>{
         }
     }
 
-    @SuppressWarnings({"RawUseOfParameterizedType"})
     private static class AsyncTaskResult<Data> {
         final ATask mTask;
         final Data[] mData;
@@ -211,6 +243,5 @@ public abstract class ATask<Progress, Result>{
     private static abstract class WorkerRunnable<Result> implements Callable<Result> {
         Object[] mParams;
     }
-
 
 }
