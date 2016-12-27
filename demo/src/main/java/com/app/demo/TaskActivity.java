@@ -6,7 +6,9 @@ import android.util.Log;
 import android.widget.TextView;
 
 import base.library.task.ATask;
+import base.library.task.EnvInitTask;
 import base.library.task.ResultReceiver;
+import base.library.task.TaskManager;
 
 /**
  * 测试
@@ -25,40 +27,17 @@ public class TaskActivity extends Activity implements ResultReceiver{
         tv.setText("TaskActivity");
         setContentView(tv);
 
-        Task[] task = new Task[10];
-        for(int i = 0 ; i < 10 ; i++){
-            task[i] = new Task();
-            task[i].execute(this,i);
-        }
-        task[2].cancel(true);
-        task[9].cancel(true);
+        ATask task = TaskManager.getInstance().getTask(EnvInitTask.class);
+        task.execute(this, "aaaaa");
 
     }
 
     @Override
     public void receiver(ATask task, Object e) {
-        if(task instanceof Task){
+        if(task instanceof EnvInitTask){
             String str = (String)e;
             Log.e(TAG, "receiver:"+str);
         }
-    }
-
-    private static class Task extends ATask<String ,String> {
-
-        private int i;
-
-        @Override
-        protected String doInBackground(Object... objs) {
-            i = (int)objs[0];
-            try {
-                Thread.sleep(3000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-
-            return "Task:"+i;
-        }
-
     }
 
 }

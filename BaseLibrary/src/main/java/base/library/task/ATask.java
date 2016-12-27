@@ -116,7 +116,28 @@ public abstract class ATask<Progress, Result>{
         return sHandler;
     }
 
-    protected final void preExecute(ResultReceiver receiver, Object... objs) {
+    /**
+     * 执行任务
+     *
+     * @param objs
+     */
+    public void execute(ResultReceiver receiver, Object... objs) {
+        preExecute(receiver, objs);
+        TaskThreadPool.execute(mFuture);
+    }
+
+    /**
+     * 顺序执行任务，有依赖关系的任务可调用此方法
+     *
+     * @param objs
+     */
+    public void executeSerial(ResultReceiver receiver, Object... objs) {
+        preExecute(receiver, objs);
+        TaskThreadPool.executeSerial(mFuture);
+    }
+
+
+    private void preExecute(ResultReceiver receiver, Object... objs) {
         if (mStatus != Status.PENDING) {
             switch (mStatus) {
                 case RUNNING:
@@ -144,7 +165,7 @@ public abstract class ATask<Progress, Result>{
         return mFuture.cancel(mayInterruptIfRunning);
     }
 
-    protected final void finish(Result result) {
+    private void finish(Result result) {
         if (isCancelled()) {
             onCancelled(result);
 
@@ -189,26 +210,6 @@ public abstract class ATask<Progress, Result>{
     }
 
     protected abstract Result doInBackground(Object... objs);
-
-    /**
-     * 执行任务
-     *
-     * @param objs
-     */
-    public void execute(ResultReceiver receiver, Object... objs) {
-        preExecute(receiver, objs);
-        TaskThreadPool.execute(mFuture);
-    }
-
-    /**
-     * 顺序执行任务，有依赖关系的任务可调用此方法
-     *
-     * @param objs
-     */
-    public void executeSerial(ResultReceiver receiver, Object... objs) {
-        preExecute(receiver, objs);
-        TaskThreadPool.executeSerial(mFuture);
-    }
 
     private static class InternalHandler extends Handler {
 

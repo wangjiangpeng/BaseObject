@@ -26,7 +26,7 @@ public class TaskThreadPool {
     private final Executor mThreadPoolExecutor;
     private final Executor mSerialExecutor;
 
-    private static TaskThreadPool mTaskPool;
+    private static TaskThreadPool sTaskPool;
 
     /**
      * 单例
@@ -34,15 +34,15 @@ public class TaskThreadPool {
      * @return
      */
     public static TaskThreadPool getInstance() {
-        if (mTaskPool == null) {
+        if (sTaskPool == null) {
             synchronized (TaskThreadPool.class) {
-                if (mTaskPool == null) {
-                    mTaskPool = new TaskThreadPool();
+                if (sTaskPool == null) {
+                    sTaskPool = new TaskThreadPool();
                 }
             }
         }
 
-        return mTaskPool;
+        return sTaskPool;
     }
 
     private TaskThreadPool() {

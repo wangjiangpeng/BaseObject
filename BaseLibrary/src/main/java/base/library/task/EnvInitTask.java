@@ -5,18 +5,18 @@ package base.library.task;
  *
  * Created by wangjiangpeng01 on 2016/12/22.
  */
-public class EnvInitTask<Progress, Result> extends ATask<Progress, Result> {
+public class EnvInitTask extends ATask<Void, String> {
 
     @Override
-    protected Result doInBackground(Object... objs) {
+    protected String doInBackground(Object... objs) {
 
         try {
-            Thread.sleep(10000);
+            Thread.sleep(1000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
 
-        return null;
+        return (String)objs[0];
     }
 
 }
