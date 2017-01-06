@@ -5,7 +5,7 @@ package base.library.task;
  *
  * Created by wangjiangpeng01 on 2016/12/22.
  */
-public class EnvInitTask extends ATask<Void, String> {
+public class EnvInitTask extends ATask<Void> {
 
     @Override
     protected String doInBackground(Object... objs) {

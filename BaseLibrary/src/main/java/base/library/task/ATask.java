@@ -14,12 +14,14 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import base.library.task.TaskManager.ResultCallbacks;
+
 /**
  * 抽象任务
- *
+ * <p>
  * Created by wangjiangpeng01 on 2016/12/19.
  */
-public abstract class ATask<Progress, Result>{
+public abstract class ATask<Progress> {
     private static final String LOG_TAG = "ATask";
 
     private final static int MESSAGE_POST_RESULT = 0x01;
@@ -28,7 +30,7 @@ public abstract class ATask<Progress, Result>{
     /**
      * 表示当前任务的状态，每个状态，一次生命周期只设置一次
      */
-    public enum Status {
+    private enum Status {
         /**
          * 该任务尚未被执行
          */
@@ -45,10 +47,10 @@ public abstract class ATask<Progress, Result>{
 
     private static InternalHandler sHandler;
 
-    protected final WorkerRunnable<Result> mWorker;
-    protected final FutureTask<Result> mFuture;
+    private final WorkerRunnable<Object> mWorker;
+    private final FutureTask<Object> mFuture;
 
-    protected volatile Status mStatus = Status.PENDING;
+    private volatile Status mStatus = Status.PENDING;
 
     private final AtomicBoolean mCancelled;
     private final AtomicBoolean mTaskInvoked;
@@ -56,25 +58,25 @@ public abstract class ATask<Progress, Result>{
     /**
      * 弱引用，防止对象无法释放
      */
-    private WeakReference<ResultReceiver> weakReceiver;
+    private WeakReference<ResultCallbacks> weakReceiver;
 
-    public ATask(){
+    public ATask() {
         mStatus = Status.PENDING;
         mCancelled = new AtomicBoolean();
         mTaskInvoked = new AtomicBoolean();
 
-        mWorker = new WorkerRunnable<Result>() {
-            public Result call() throws Exception {
+        mWorker = new WorkerRunnable<Object>() {
+            public Object call() throws Exception {
                 mTaskInvoked.set(true);
 
                 Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
-                Result result = doInBackground(mParams);
+                Object result = doInBackground(mParams);
                 Binder.flushPendingCommands();
                 return postResult(result);
             }
         };
 
-        mFuture = new FutureTask<Result>(mWorker) {
+        mFuture = new FutureTask<Object>(mWorker) {
             @Override
             protected void done() {
                 try {
@@ -91,16 +93,16 @@ public abstract class ATask<Progress, Result>{
         };
     }
 
-    private void postResultIfNotInvoked(Result result) {
+    private void postResultIfNotInvoked(Object result) {
         final boolean wasTaskInvoked = mTaskInvoked.get();
         if (!wasTaskInvoked) {
             postResult(result);
         }
     }
 
-    private Result postResult(Result result) {
+    private Object postResult(Object result) {
         Message message = getHandler().obtainMessage(MESSAGE_POST_RESULT,
-                new AsyncTaskResult<Result>(this, result));
+                new AsyncTaskResult<Object>(this, result));
         message.sendToTarget();
         return result;
     }
@@ -116,28 +118,31 @@ public abstract class ATask<Progress, Result>{
         return sHandler;
     }
 
+    public void setResultCallbacks(ResultCallbacks callbacks) {
+        weakReceiver = new WeakReference(callbacks);
+    }
+
     /**
      * 执行任务
      *
-     * @param objs
+     * @param objs 执行参数
      */
-    public void execute(ResultReceiver receiver, Object... objs) {
-        preExecute(receiver, objs);
+    public void execute(Object... objs) {
+        preExecute(objs);
         TaskThreadPool.execute(mFuture);
     }
 
     /**
      * 顺序执行任务，有依赖关系的任务可调用此方法
      *
-     * @param objs
+     * @param objs 执行参数
      */
-    public void executeSerial(ResultReceiver receiver, Object... objs) {
-        preExecute(receiver, objs);
+    public void executeSerial(Object... objs) {
+        preExecute(objs);
         TaskThreadPool.executeSerial(mFuture);
     }
 
-
-    private void preExecute(ResultReceiver receiver, Object... objs) {
+    private void preExecute(Object... objs) {
         if (mStatus != Status.PENDING) {
             switch (mStatus) {
                 case RUNNING:
@@ -151,7 +156,6 @@ public abstract class ATask<Progress, Result>{
         }
         mStatus = Status.RUNNING;
         mWorker.mParams = objs;
-        weakReceiver = new WeakReference(receiver);
 
         onPreExecute();
     }
@@ -165,15 +169,18 @@ public abstract class ATask<Progress, Result>{
         return mFuture.cancel(mayInterruptIfRunning);
     }
 
-    private void finish(Result result) {
+    private void finish(Object result) {
         if (isCancelled()) {
             onCancelled(result);
 
         } else {
             onPostExecute(result);
 
-            if(weakReceiver.get() != null){
-                weakReceiver.get().receiver(this, result);
+            if (weakReceiver != null) {
+                ResultCallbacks callbacks = weakReceiver.get();
+                if (callbacks != null) {
+                    callbacks.onFinished(this, result);
+                }
             }
         }
         mStatus = Status.FINISHED;
@@ -181,35 +188,34 @@ public abstract class ATask<Progress, Result>{
 
     protected final void publishProgress(Progress... values) {
         if (!isCancelled()) {
-            AsyncTaskResult result= new AsyncTaskResult<Progress>(this, values);
+            AsyncTaskResult result = new AsyncTaskResult<Progress>(this, values);
             getHandler().obtainMessage(MESSAGE_POST_PROGRESS, result).sendToTarget();
         }
     }
 
     /**
      * 任务生命周期
-     *
-     *
-     *         外部引用publishProgress() -> onProgressUpdate() -> onPostExecute();
-     *                |
+     * <p>
+     * <p>
+     * 外部引用publishProgress() -> onProgressUpdate() -> onPostExecute();
+     * |
      * onPreExecute() -> onPostExecute()
-     *                |
-     *          外部引用cancel() == true  -> onCancelled()
-     *
+     * |
+     * 外部引用cancel() == true  -> onCancelled()
      */
     protected void onPreExecute() {
     }
 
-    protected void onPostExecute(Result result) {
+    protected void onPostExecute(Object result) {
     }
 
-    protected void onCancelled(Result result) {
+    protected void onCancelled(Object result) {
     }
 
     protected void onProgressUpdate(Progress... values) {
     }
 
-    protected abstract Result doInBackground(Object... objs);
+    protected abstract Object doInBackground(Object... objs);
 
     private static class InternalHandler extends Handler {
 
