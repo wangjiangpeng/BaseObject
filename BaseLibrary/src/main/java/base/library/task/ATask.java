@@ -60,6 +60,11 @@ public abstract class ATask<Progress> {
      */
     private WeakReference<ResultCallbacks> weakReceiver;
 
+    /**
+     * 执行结果
+     */
+    private Object result;
+
     public ATask() {
         mStatus = Status.PENDING;
         mCancelled = new AtomicBoolean();
@@ -118,18 +123,20 @@ public abstract class ATask<Progress> {
         return sHandler;
     }
 
-    public void setResultCallbacks(ResultCallbacks callbacks) {
-        weakReceiver = new WeakReference(callbacks);
-    }
-
     /**
      * 执行任务
      *
      * @param objs 执行参数
      */
-    public void execute(Object... objs) {
-        preExecute(objs);
-        TaskThreadPool.execute(mFuture);
+    public void execute(ResultCallbacks callbacks, Object... objs) {
+        boolean execute = preExecute(callbacks, objs);
+        if (execute) {
+            TaskThreadPool.execute(mFuture);
+        } else {
+            if (callbacks != null) {
+                callbacks.onFinished(this, result);
+            }
+        }
     }
 
     /**
@@ -137,27 +144,42 @@ public abstract class ATask<Progress> {
      *
      * @param objs 执行参数
      */
-    public void executeSerial(Object... objs) {
-        preExecute(objs);
-        TaskThreadPool.executeSerial(mFuture);
-    }
-
-    private void preExecute(Object... objs) {
-        if (mStatus != Status.PENDING) {
-            switch (mStatus) {
-                case RUNNING:
-                    throw new IllegalStateException("Cannot execute task:"
-                            + " the task is already running.");
-                case FINISHED:
-                    throw new IllegalStateException("Cannot execute task:"
-                            + " the task has already been executed "
-                            + "(a task can be executed only once)");
+    public void executeSerial(ResultCallbacks callbacks, Object... objs) {
+        boolean execute = preExecute(callbacks, objs);
+        if (execute) {
+            TaskThreadPool.executeSerial(mFuture);
+        }else {
+            if (callbacks != null) {
+                callbacks.onFinished(this, result);
             }
         }
-        mStatus = Status.RUNNING;
-        mWorker.mParams = objs;
+    }
 
-        onPreExecute();
+    private boolean preExecute(ResultCallbacks callbacks, Object... objs) {
+        if (mStatus != Status.PENDING) {
+            return false;
+        } else {
+            onPreExecute();
+            mWorker.mParams = objs;
+            weakReceiver = new WeakReference(callbacks);
+            return true;
+        }
+    }
+
+    /**
+     * 重置任务
+     * 重置正在执行的任务，会抛出异常
+     */
+    public void reset(){
+        if(mStatus == Status.RUNNING){
+            throw new IllegalStateException("Cannot reset task:" + " the task is already running.");
+        }
+
+        mStatus = Status.PENDING;
+        mCancelled.set(false);
+        mTaskInvoked.set(false);
+        weakReceiver = null;
+        result = null;
     }
 
     public final boolean isCancelled() {
@@ -170,17 +192,16 @@ public abstract class ATask<Progress> {
     }
 
     private void finish(Object result) {
+        this.result = result;
         if (isCancelled()) {
             onCancelled(result);
 
         } else {
             onPostExecute(result);
 
-            if (weakReceiver != null) {
-                ResultCallbacks callbacks = weakReceiver.get();
-                if (callbacks != null) {
-                    callbacks.onFinished(this, result);
-                }
+            ResultCallbacks callbacks = weakReceiver.get();
+            if (callbacks != null) {
+                callbacks.onFinished(this, result);
             }
         }
         mStatus = Status.FINISHED;

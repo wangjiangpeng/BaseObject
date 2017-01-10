@@ -62,7 +62,7 @@ public class TaskManager {
     }
 
     /**
-     * 执行任务
+     * 初始化并且执行任务
      *
      * @param cls       要执行的任务类
      * @param callbacks 返回数据处理
@@ -70,16 +70,15 @@ public class TaskManager {
      * @param <D>       任务类泛型
      * @return 任务对象
      */
-    public <D extends ATask> D executeTask(Class<D> cls, ResultCallbacks callbacks, Object... objs) {
+    public <D extends ATask> D initTask(Class<D> cls, ResultCallbacks callbacks, Object... objs) {
         D task = getTask(cls);
-        task.setResultCallbacks(callbacks);
-        task.execute(objs);
+        task.execute(callbacks, objs);
 
         return task;
     }
 
     /**
-     * 顺序执行任务
+     * 初始化并且执行任务（顺序执行任务）
      *
      * @param cls       要执行的任务类
      * @param callbacks 返回数据处理
@@ -87,13 +86,50 @@ public class TaskManager {
      * @param <D>       任务类泛型
      * @return 任务对象
      */
-    public <D extends ATask> D executeSerialTask(Class<D> cls, ResultCallbacks callbacks, Object... objs) {
+    public <D extends ATask> D initSerialTask(Class<D> cls, ResultCallbacks callbacks, Object... objs) {
         D task = getTask(cls);
-        task.setResultCallbacks(callbacks);
-        task.executeSerial(objs);
+        task.executeSerial(callbacks, objs);
 
         return task;
     }
+
+    /**
+     * 重新执行任务
+     * 正在执行的任务，会抛出异常
+     *
+     * @param cls       要执行的任务类
+     * @param callbacks 返回数据处理
+     * @param objs      执行参数
+     * @param <D>       任务类泛型
+     * @return
+     */
+    public <D extends ATask> D restartTask(Class<D> cls, ResultCallbacks callbacks, Object... objs) {
+        D task = getTask(cls);
+        task.reset();
+        task.execute(callbacks, objs);
+
+        return task;
+    }
+
+    /**
+     * 重新执行任务（顺序执行任务）
+     * 正在执行的任务，会抛出异常
+     *
+     * @param cls       要执行的任务类
+     * @param callbacks 返回数据处理
+     * @param objs      执行参数
+     * @param <D>       任务类泛型
+     * @return
+     */
+    public <D extends ATask> D restartSerialTask(Class<D> cls, ResultCallbacks callbacks, Object... objs) {
+        D task = getTask(cls);
+        task.reset();
+        task.executeSerial(callbacks, objs);
+
+        return task;
+    }
+
+
 
     /**
      * 清除数据
