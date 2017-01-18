@@ -47,8 +47,8 @@ public abstract class ATask<Progress> {
 
     private static InternalHandler sHandler;
 
-    private final WorkerRunnable<Object> mWorker;
-    private final FutureTask<Object> mFuture;
+    private WorkerRunnable<Object> mWorker;
+    private FutureTask<Object> mFuture;
 
     private volatile Status mStatus = Status.PENDING;
 
@@ -69,47 +69,6 @@ public abstract class ATask<Progress> {
         mStatus = Status.PENDING;
         mCancelled = new AtomicBoolean();
         mTaskInvoked = new AtomicBoolean();
-
-        mWorker = new WorkerRunnable<Object>() {
-            public Object call() throws Exception {
-                mTaskInvoked.set(true);
-
-                Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
-                Object result = doInBackground(mParams);
-                Binder.flushPendingCommands();
-                return postResult(result);
-            }
-        };
-
-        mFuture = new FutureTask<Object>(mWorker) {
-            @Override
-            protected void done() {
-                try {
-                    postResultIfNotInvoked(get());
-                } catch (InterruptedException e) {
-                    android.util.Log.w(LOG_TAG, e);
-                } catch (ExecutionException e) {
-                    throw new RuntimeException("An error occurred while executing doInBackground()",
-                            e.getCause());
-                } catch (CancellationException e) {
-                    postResultIfNotInvoked(null);
-                }
-            }
-        };
-    }
-
-    private void postResultIfNotInvoked(Object result) {
-        final boolean wasTaskInvoked = mTaskInvoked.get();
-        if (!wasTaskInvoked) {
-            postResult(result);
-        }
-    }
-
-    private Object postResult(Object result) {
-        Message message = getHandler().obtainMessage(MESSAGE_POST_RESULT,
-                new AsyncTaskResult<Object>(this, result));
-        message.sendToTarget();
-        return result;
     }
 
     private static Handler getHandler() {
@@ -159,11 +118,53 @@ public abstract class ATask<Progress> {
         if (mStatus != Status.PENDING) {
             return false;
         } else {
-            onPreExecute();
+            mWorker = new WorkerRunnable<Object>() {
+                public Object call() throws Exception {
+                    mTaskInvoked.set(true);
+
+                    Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
+                    Object result = doInBackground(mParams);
+                    Binder.flushPendingCommands();
+                    return postResult(result);
+                }
+            };
+
+            mFuture = new FutureTask<Object>(mWorker) {
+                @Override
+                protected void done() {
+                    try {
+                        postResultIfNotInvoked(get());
+                    } catch (InterruptedException e) {
+                        android.util.Log.w(LOG_TAG, e);
+                    } catch (ExecutionException e) {
+                        throw new RuntimeException("An error occurred while executing doInBackground()",
+                                e.getCause());
+                    } catch (CancellationException e) {
+                        postResultIfNotInvoked(null);
+                    }
+                }
+            };
             mWorker.mParams = objs;
             weakReceiver = new WeakReference(callbacks);
+
+            onPreExecute();
+
             return true;
         }
+    }
+
+    private void postResultIfNotInvoked(Object result) {
+        final boolean wasTaskInvoked = mTaskInvoked.get();
+        if (!wasTaskInvoked) {
+            postResult(result);
+        }
+    }
+
+    private Object postResult(Object result) {
+        Message message = getHandler().obtainMessage(MESSAGE_POST_RESULT,
+                new AsyncTaskResult<Object>(this, result));
+        message.sendToTarget();
+        return result;
     }
 
     /**
@@ -180,6 +181,8 @@ public abstract class ATask<Progress> {
         mTaskInvoked.set(false);
         weakReceiver = null;
         result = null;
+        mWorker = null;
+        mFuture = null;
     }
 
     public final boolean isCancelled() {
