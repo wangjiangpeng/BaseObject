@@ -1,12 +1,11 @@
 package base.library.net;
 
-import java.security.KeyStore;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
  * 网络请求参数
- *
+ * <p>
  * Created by wangjiangpeng01 on 2017/1/11.
  */
 
@@ -20,6 +19,11 @@ public class RequestParam {
      * 头部
      */
     private HashMap<String, String> headers = new HashMap<>();
+
+    /**
+     * 头部
+     */
+    private HashMap<String, String> posts = new HashMap<>();
     /**
      * get数据
      */
@@ -28,31 +32,34 @@ public class RequestParam {
      * post数据
      */
     private String postData;
-
     /**
      * ssl是否双向验证
      */
     private boolean isSSLMutual;
-
     /**
      * 私钥资源
      */
     private int keyStoreId;
-
     /**
-     * 信任证书密码
+     * 信任证书资源
      */
     private int trustStoreId;
-
     /**
      * 私钥密码
      */
     private String keyStorePass;
-
     /**
      * 信任证书密码
      */
     private String trustStorePass;
+    /**
+     * 连接超时时间（单位毫秒）
+     */
+    private long connectTimeout;
+    /**
+     * 读取超时时间（单位毫秒）
+     */
+    private long readTimeout;
 
     public String getDomain() {
         return domain;
@@ -74,6 +81,18 @@ public class RequestParam {
         return (Map<String, String>) headers.clone();
     }
 
+    public void addPost(String key, String value) {
+        posts.put(key, value);
+    }
+
+    public void removePost(String key) {
+        posts.remove(key);
+    }
+
+    public Map<String, String> getPosts() {
+        return (Map<String, String>) posts.clone();
+    }
+
     public String getGetData() {
         return getData;
     }
@@ -91,7 +110,7 @@ public class RequestParam {
     }
 
     public boolean isHttps() {
-        if(domain != null && domain.startsWith("https")){
+        if (domain != null && domain.startsWith("https")) {
             return true;
         } else {
             return false;
@@ -136,6 +155,22 @@ public class RequestParam {
 
     public void setTrustStorePass(String trustStorePass) {
         this.trustStorePass = trustStorePass;
+    }
+
+    public long getConnectTimeout() {
+        return connectTimeout;
+    }
+
+    public void setConnectTimeout(long connectTimeout) {
+        this.connectTimeout = connectTimeout;
+    }
+
+    public long getReadTimeout() {
+        return readTimeout;
+    }
+
+    public void setReadTimeout(long readTimeout) {
+        this.readTimeout = readTimeout;
     }
 
     public String getUrl() {

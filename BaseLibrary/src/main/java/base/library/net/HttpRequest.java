@@ -2,6 +2,7 @@ package base.library.net;
 
 import android.app.Application;
 
+import com.squareup.okhttp.FormEncodingBuilder;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
 import com.squareup.okhttp.Response;
@@ -9,13 +10,13 @@ import com.squareup.okhttp.Response;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.KeyStore;
+import java.security.SecureRandom;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
-import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 
@@ -53,6 +54,10 @@ import base.library.BaseApplication;
  */
 public class HttpRequest {
 
+    private static final long DEFAULT_CONNECT_TIMEOUT = 30000;
+
+    private static final long DEFAULT_READ_TIMEOUT = 30000;
+
     /**
      * 请求
      *
@@ -62,20 +67,33 @@ public class HttpRequest {
      */
     public byte[] request(RequestParam param) throws IOException {
         OkHttpClient client = new OkHttpClient();
+        client.setConnectTimeout(param.getConnectTimeout() > 0 ? param.getConnectTimeout() : DEFAULT_CONNECT_TIMEOUT, TimeUnit.MILLISECONDS);
+        client.setReadTimeout(param.getReadTimeout() > 0 ? param.getReadTimeout() : DEFAULT_READ_TIMEOUT, TimeUnit.MILLISECONDS);
         // https
         if (param.isHttps()) {
             client.setSslSocketFactory(createSSLSocketFactory(param));
-            client.setHostnameVerifier(new HostnameVerifierImpl());
+            // 域名验证视需求而定
+            client.setHostnameVerifier(org.apache.http.conn.ssl.SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
         }
-        // 请求数据填充
-        Request.Builder builder = new Request.Builder();
-        builder.url(param.getUrl());
+        // 地址
+        Request.Builder rBuilder = new Request.Builder();
+        rBuilder.url(param.getUrl());
+        // 头部
         Map<String, String> headers = param.getHeaders();
         for (String key : headers.keySet()) {
-            builder.addHeader(key, headers.get(key));
+            rBuilder.addHeader(key, headers.get(key));
+        }
+        // post
+        headers = param.getPosts();
+        if(headers.size() > 0){
+            FormEncodingBuilder feBuilder = new FormEncodingBuilder();
+            for (String key : headers.keySet()) {
+                feBuilder.add(key, headers.get(key));
+            }
+            rBuilder.post(feBuilder.build());
         }
         // 执行请求
-        Request request = builder.build();
+        Request request = rBuilder.build();
         Response response = client.newCall(request).execute();
         if (response.isSuccessful()) {
             byte[] result = response.body().bytes();
@@ -101,7 +119,7 @@ public class HttpRequest {
 
             // 双向验证时，客户端密钥加载
             KeyManager[] keyManagers = null;
-            if(param.isSSLMutual()){
+            if (param.isSSLMutual()) {
                 inputStream = app.getResources().openRawResource(param.getKeyStoreId());
                 KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
                 KeyManagerFactory keyManager = KeyManagerFactory.getInstance("X509");
@@ -111,7 +129,7 @@ public class HttpRequest {
             }
 
             SSLContext sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(keyManagers, trustManager.getTrustManagers(), null);
+            sslContext.init(keyManagers, trustManager.getTrustManagers(), new SecureRandom());
 
             return sslContext.getSocketFactory();
 
@@ -137,14 +155,6 @@ public class HttpRequest {
         }
 
         return null;
-    }
-
-    private static class HostnameVerifierImpl implements HostnameVerifier {
-
-        @Override
-        public boolean verify(String hostname, SSLSession session) {
-            return true;
-        }
     }
 
 }
