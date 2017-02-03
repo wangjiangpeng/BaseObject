@@ -1,9 +1,8 @@
 package com.app.demo.task;
 
-import java.io.IOException;
-
 import base.library.MLog;
 import base.library.net.HttpRequest;
+import base.library.net.ResponseData;
 import base.library.task.ATask;
 
 /**
@@ -14,14 +13,13 @@ public class TestTask extends ATask {
     @Override
     protected Object doInBackground(Object... objs) {
         HttpRequest request = new HttpRequest();
-        try {
-            byte[] bytes = request.request(RequestParamFactory.createTestParam());
+        ResponseData data = request.request(RequestParamFactory.createTestParam());
+        if (data.isSuccessful()) {
+            String str = new String(data.getData());
+            MLog.http("TestTask", str);
 
-            String str = new String(bytes);
-            MLog.http("WJP", str);
-
-        } catch (IOException e) {
-            e.printStackTrace();
+        } else {
+            MLog.http("TestTask", "error");
         }
 
         return null;

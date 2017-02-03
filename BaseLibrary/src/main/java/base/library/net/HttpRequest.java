@@ -65,7 +65,7 @@ public class HttpRequest {
      * @return
      * @throws IOException
      */
-    public byte[] request(RequestParam param) throws IOException {
+    public ResponseData request(RequestParam param) {
         OkHttpClient client = new OkHttpClient();
         client.setConnectTimeout(param.getConnectTimeout() > 0 ? param.getConnectTimeout() : DEFAULT_CONNECT_TIMEOUT, TimeUnit.MILLISECONDS);
         client.setReadTimeout(param.getReadTimeout() > 0 ? param.getReadTimeout() : DEFAULT_READ_TIMEOUT, TimeUnit.MILLISECONDS);
@@ -85,7 +85,7 @@ public class HttpRequest {
         }
         // post
         headers = param.getPosts();
-        if(headers.size() > 0){
+        if (headers.size() > 0) {
             FormEncodingBuilder feBuilder = new FormEncodingBuilder();
             for (String key : headers.keySet()) {
                 feBuilder.add(key, headers.get(key));
@@ -93,16 +93,23 @@ public class HttpRequest {
             rBuilder.post(feBuilder.build());
         }
         // 执行请求
+        ResponseData responseData = new ResponseData();
         Request request = rBuilder.build();
-        Response response = client.newCall(request).execute();
-        if (response.isSuccessful()) {
-            byte[] result = response.body().bytes();
-            response.body().close();
-            return result;
+        try {
+            Response response = client.newCall(request).execute();
+            responseData.setCode(response.code());
+            if (response.isSuccessful()) {
+                responseData.setData(response.body().bytes());
+                response.body().close();
+            }
 
-        } else {
-            throw new IOException("service error:" + response);
+        } catch (IOException e) {
+            e.printStackTrace();
+            // 抛异常code参数设置为404
+            responseData.setCode(404);
         }
+
+        return responseData;
     }
 
     private SSLSocketFactory createSSLSocketFactory(RequestParam param) {
