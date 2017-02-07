@@ -8,7 +8,7 @@ import java.util.HashMap;
  * Created by wangjiangpeng01 on 2017/1/20.
  */
 
-public abstract class AbsCache<K,E> {
+public abstract class Cache<K,E> {
 
     private HashMap<K, E> map = new HashMap<>();
 

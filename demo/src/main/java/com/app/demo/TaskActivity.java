@@ -1,12 +1,15 @@
 package com.app.demo;
 
 import android.app.Activity;
+import android.content.pm.PackageInfo;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 
 import com.app.demo.task.TestTask;
+
+import java.util.List;
 
 import base.library.task.ATask;
 import base.library.task.TaskManager;
@@ -27,13 +30,6 @@ public class TaskActivity extends Activity implements View.OnClickListener {
         }
     };
 
-    private TaskManager.ResultCallbacks callbacks2 = new TaskManager.ResultCallbacks() {
-        @Override
-        public void onFinished(ATask task, Object result) {
-            Log.e(TAG, "receiver:callbacks2" + result);
-        }
-    };
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -46,6 +42,8 @@ public class TaskActivity extends Activity implements View.OnClickListener {
 
         Button btn2 = (Button) findViewById(R.id.task_btn2);
         btn2.setOnClickListener(this);
+
+        List<PackageInfo> packageInfos = getPackageManager().getInstalledPackages(0);
     }
 
     @Override
@@ -54,12 +52,6 @@ public class TaskActivity extends Activity implements View.OnClickListener {
             case R.id.task_btn1: {
                 TaskManager taskManager = TaskManager.getInstance();
                 taskManager.restartTask(TestTask.class, callbacks1);
-            }
-            break;
-
-            case R.id.task_btn2: {
-                TaskManager taskManager = TaskManager.getInstance();
-                taskManager.restartTask(TestTask.class, callbacks2);
             }
             break;
         }

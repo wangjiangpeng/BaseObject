@@ -129,13 +129,4 @@ public class TaskManager {
         return task;
     }
 
-
-
-    /**
-     * 清除数据
-     */
-    public void clear() {
-        taskMap.clear();
-    }
-
 }
