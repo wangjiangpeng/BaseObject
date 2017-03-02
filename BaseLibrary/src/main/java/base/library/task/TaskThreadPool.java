@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 任务线程池
- *
+ * <p>
  * Created by wangjiangpeng01 on 2016/12/19.
  */
 public class TaskThreadPool {
@@ -61,15 +61,26 @@ public class TaskThreadPool {
 
     /**
      * 执行线程
+     * 如果环境初始化任务没有完成，那么其他任务都要依赖它执行完了在执行
      *
      * @param runnable
      */
     public static void execute(Runnable runnable) {
-        getInstance().mThreadPoolExecutor.execute(runnable);
+        ATask task = TaskManager.getInstance().getTask(EnvInitTask.class);
+        if (task.isFinished()) {
+            getInstance().mThreadPoolExecutor.execute(runnable);
+
+        } else {
+            if (!task.isRunning()) {
+                task.executeSerial(null);
+            }
+            getInstance().mSerialExecutor.execute(runnable);
+        }
     }
 
     /**
      * 顺序执行线程
+     * 可以当成任务依赖来使用，前面一个任务执行完了，后面一个任务才能执行
      *
      * @param runnable
      */

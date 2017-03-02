@@ -20,7 +20,6 @@ public class DemoActivity extends BaseActivity implements View.OnClickListener {
         findViewById(R.id.demo_task).setOnClickListener(this);
     }
 
-
     @Override
     public void onClick(View v) {
         switch (v.getId()) {

@@ -11,7 +11,7 @@ import base.library.net.RequestParam;
  */
 public class RequestParamFactory {
 
-    private static final String DEFAULT_DOMAIN = "https://172.17.148.56:8443/TomcatTest/api.do?";
+    private static final String DEFAULT_DOMAIN = "https://172.17.148.147:8443/TomcatTest/api.do?";
 
     public static RequestParam createTestParam(){
         RequestParam requestParam = createDefaultParam();

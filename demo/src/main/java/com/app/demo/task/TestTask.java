@@ -6,9 +6,10 @@ import base.library.net.ResponseData;
 import base.library.task.ATask;
 
 /**
+ * 测试接口
+ *
  * Created by wangjiangpeng01 on 2017/1/13.
  */
-
 public class TestTask extends ATask {
     @Override
     protected Object doInBackground(Object... objs) {

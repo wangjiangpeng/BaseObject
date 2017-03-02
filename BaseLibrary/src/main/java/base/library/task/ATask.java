@@ -185,13 +185,42 @@ public abstract class ATask<Progress> {
         mFuture = null;
     }
 
+    /**
+     * 是否任务被取消
+     *
+     * @return
+     */
     public final boolean isCancelled() {
         return mCancelled.get();
     }
 
+    /**
+     * 任务是否正在执行
+     *
+     * @return
+     */
+    public final boolean isRunning() {
+        return mStatus == Status.RUNNING;
+    }
+
+    /**
+     * 取消任务
+     *
+     * @param mayInterruptIfRunning
+     * @return
+     */
     public final boolean cancel(boolean mayInterruptIfRunning) {
         mCancelled.set(true);
         return mFuture.cancel(mayInterruptIfRunning);
+    }
+
+    /**
+     * 任务是否完成
+     *
+     * @return
+     */
+    public final boolean isFinished() {
+        return mStatus == Status.FINISHED;
     }
 
     private void finish(Object result) {
