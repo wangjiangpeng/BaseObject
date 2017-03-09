@@ -19,7 +19,7 @@ import base.library.task.TaskManager;
  * <p>
  * Created by wangjiangpeng01 on 2016/12/21.
  */
-public class TaskActivity extends Activity implements View.OnClickListener {
+public class TaskActivity extends Activity implements View.OnClickListener, TaskManager.ResultCallbacks {
 
     private static final String TAG = "TaskActivity";
 
@@ -38,12 +38,6 @@ public class TaskActivity extends Activity implements View.OnClickListener {
 
         Button btn1 = (Button) findViewById(R.id.task_btn1);
         btn1.setOnClickListener(this);
-
-
-        Button btn2 = (Button) findViewById(R.id.task_btn2);
-        btn2.setOnClickListener(this);
-
-        List<PackageInfo> packageInfos = getPackageManager().getInstalledPackages(0);
     }
 
     @Override
@@ -57,4 +51,8 @@ public class TaskActivity extends Activity implements View.OnClickListener {
         }
     }
 
+    @Override
+    public void onFinished(ATask task, Object result) {
+
+    }
 }
