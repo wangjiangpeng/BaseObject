@@ -17,9 +17,12 @@ public class AppModule implements Module {
 
 
     @Override
-    public void init() {
-        appManager = new AppManager();
+    public void load() {
+
     }
 
+    @Override
+    public void unload() {
 
+    }
 }

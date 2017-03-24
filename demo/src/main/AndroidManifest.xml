@@ -20,7 +20,6 @@
         </activity>
 
         <activity android:name=".TaskActivity"/>
-        <activity android:name=".RefreshActivity"/>
 
         
     </application>
