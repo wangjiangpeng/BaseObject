@@ -18,6 +18,7 @@ public class DemoActivity extends BaseActivity implements View.OnClickListener {
         setContentView(R.layout.demo);
 
         findViewById(R.id.demo_task).setOnClickListener(this);
+        findViewById(R.id.demo_appmanager).setOnClickListener(this);
     }
 
     @Override
@@ -25,6 +26,10 @@ public class DemoActivity extends BaseActivity implements View.OnClickListener {
         switch (v.getId()) {
             case R.id.demo_task:
                 startActivity(new Intent(DemoActivity.this, TaskActivity.class));
+                break;
+
+            case R.id.demo_appmanager:
+                startActivity(new Intent(DemoActivity.this, AppManagerActivity.class));
                 break;
         }
     }

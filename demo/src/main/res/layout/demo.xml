@@ -14,6 +14,12 @@
         android:id="@+id/demo_task"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="TaskActicity" />
+        android:text="任务" />
+
+    <Button
+        android:id="@+id/demo_appmanager"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="程序管理" />
 
 </LinearLayout>

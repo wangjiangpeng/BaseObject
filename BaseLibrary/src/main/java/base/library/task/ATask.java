@@ -223,6 +223,15 @@ public abstract class ATask<Progress> {
         return mStatus == Status.FINISHED;
     }
 
+    /**
+     * 执行结果
+     *
+     * @return
+     */
+    public Object getResult(){
+        return result;
+    }
+
     private void finish(Object result) {
         this.result = result;
         if (isCancelled()) {

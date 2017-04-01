@@ -11,6 +11,7 @@ import com.app.demo.task.TestTask;
 
 import java.util.List;
 
+import base.library.BaseActivity;
 import base.library.task.ATask;
 import base.library.task.TaskManager;
 
@@ -19,16 +20,9 @@ import base.library.task.TaskManager;
  * <p>
  * Created by wangjiangpeng01 on 2016/12/21.
  */
-public class TaskActivity extends Activity implements View.OnClickListener, TaskManager.ResultCallbacks {
+public class TaskActivity extends BaseActivity implements View.OnClickListener, TaskManager.ResultCallbacks {
 
     private static final String TAG = "TaskActivity";
-
-    private TaskManager.ResultCallbacks callbacks1 = new TaskManager.ResultCallbacks() {
-        @Override
-        public void onFinished(ATask task, Object result) {
-            Log.e(TAG, "receiver:callbacks1" + result);
-        }
-    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,7 +39,7 @@ public class TaskActivity extends Activity implements View.OnClickListener, Task
         switch (v.getId()) {
             case R.id.task_btn1: {
                 TaskManager taskManager = TaskManager.getInstance();
-                taskManager.restartTask(TestTask.class, callbacks1);
+                taskManager.restartTask(TestTask.class, this);
             }
             break;
         }
@@ -53,6 +47,6 @@ public class TaskActivity extends Activity implements View.OnClickListener, Task
 
     @Override
     public void onFinished(ATask task, Object result) {
-
+        Log.e(TAG, "receiver:callbacks1" + result);
     }
 }

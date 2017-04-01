@@ -5,10 +5,16 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 
+import com.app.bean.AppInfo;
+
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import base.library.BaseApplication;
 
@@ -19,14 +25,15 @@ import base.library.BaseApplication;
  */
 
 public class AppManager {
-    private List<PackageInfo> packageInfos;
+    private Map<String, AppInfo> appInfos = new HashMap<>();
     private AppInstallReceiver receiver;
     private PackageManager packageManager;
 
     public AppManager() {
         Application app = BaseApplication.getInstance();
         packageManager = app.getPackageManager();
-        packageInfos = packageManager.getInstalledPackages(0);
+
+        queryAppInfo();
 
         receiver = new AppInstallReceiver();
         IntentFilter filter = new IntentFilter();
@@ -36,13 +43,34 @@ public class AppManager {
         app.registerReceiver(receiver, filter);
     }
 
+    private void queryAppInfo(){
+        List<ApplicationInfo> appList = packageManager.getInstalledApplications(PackageManager.GET_UNINSTALLED_PACKAGES);
+        for(ApplicationInfo info : appList){
+            try {
+                PackageInfo pInfo = packageManager.getPackageInfo(info.packageName, PackageManager.GET_ACTIVITIES);
+                AppInfo appInfo = new AppInfo();
+                appInfo.setIcon(info.loadIcon(packageManager));
+                appInfo.setLable(info.loadLabel(packageManager).toString());
+                appInfo.setPackageName(info.packageName);
+                appInfo.setSourceDir(info.sourceDir);
+                if(pInfo != null){
+                    appInfo.setVersionCode(pInfo.versionCode);
+                    appInfo.setVersionName(pInfo.versionName);
+                }
+                appInfos.put(info.packageName, appInfo);
+            }catch (Exception e){
+
+            }
+        }
+    }
+
     /**
      * 已安装程序
      *
      * @return 程序列表
      */
-    public List<PackageInfo> getInstalledPackages() {
-        return packageInfos;
+    public List<AppInfo> getInstalledApps() {
+        return new ArrayList<>(appInfos.values());
     }
 
     /**
@@ -52,12 +80,7 @@ public class AppManager {
      * @return
      */
     public boolean isInstalled(String packageName) {
-        for (PackageInfo p : packageInfos) {
-            if (p.packageName.equals(packageName)) {
-                return true;
-            }
-        }
-        return false;
+        return appInfos.containsKey(packageName);
     }
 
     /**
@@ -68,10 +91,9 @@ public class AppManager {
      * @return
      */
     public boolean isInstalled(String packageName, int versionCode) {
-        for (PackageInfo p : packageInfos) {
-            if (p.packageName.equals(packageName) && p.versionCode == versionCode) {
-                return true;
-            }
+        AppInfo info = appInfos.get(packageName);
+        if(info != null && info.getVersionCode() == versionCode){
+            return true;
         }
         return false;
     }
@@ -83,9 +105,17 @@ public class AppManager {
      */
     private void packageAdd(String packageName) {
         try {
-            PackageInfo p = packageManager.getPackageInfo(packageName, 0);
-            if (!isInstalled(packageName)) {
-                packageInfos.add(p);
+            PackageInfo pInfo = packageManager.getPackageInfo(packageName, 0);
+            ApplicationInfo aInfo = packageManager.getApplicationInfo(packageName, 0);
+
+            AppInfo appInfo = isInstalled(packageName) ? appInfos.get(packageName) : new AppInfo();
+            appInfo.setIcon(aInfo.loadIcon(packageManager));
+            appInfo.setLable(aInfo.loadLabel(packageManager).toString());
+            appInfo.setPackageName(aInfo.packageName);
+            appInfo.setVersionCode(pInfo.versionCode);
+
+            if(!isInstalled(packageName)){
+                appInfos.put(aInfo.packageName, appInfo);
             }
 
         } catch (PackageManager.NameNotFoundException e) {
@@ -99,11 +129,8 @@ public class AppManager {
      * @param packageName 包名
      */
     private void packageRemoved(String packageName) {
-        for (PackageInfo p : packageInfos) {
-            if (p.packageName.equals(packageName)) {
-                packageInfos.remove(p);
-                return;
-            }
+        if(isInstalled(packageName)){
+            appInfos.remove(packageName);
         }
     }
 
@@ -113,19 +140,7 @@ public class AppManager {
      * @param packageName 包名
      */
     private void packageReplaced(String packageName) {
-        try {
-            PackageInfo p = packageManager.getPackageInfo(packageName, 0);
-            for (PackageInfo pi : packageInfos) {
-                if (pi.packageName.equals(packageName)) {
-                    packageInfos.remove(pi);
-                    packageInfos.add(p);
-                    return;
-                }
-            }
-
-        } catch (PackageManager.NameNotFoundException e) {
-            e.printStackTrace();
-        }
+        packageAdd(packageName);
     }
 
     public class AppInstallReceiver extends BroadcastReceiver {

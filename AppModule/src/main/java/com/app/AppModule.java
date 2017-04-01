@@ -1,6 +1,10 @@
 package com.app;
 
-import base.library.Module;
+import android.util.Log;
+
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import base.library.task.TaskThreadPool;
 
 /**
  * 模块
@@ -9,20 +13,57 @@ import base.library.Module;
  * Created by wangjiangpeng01 on 2017/2/6.
  */
 
-public class AppModule implements Module {
+public class AppModule {
+
+    private Object lock = new Object();
+    private volatile boolean loaded = false;
+
     private AppManager appManager;
+
+    private static AppModule sAppModule;
+
+    /**
+     * 单例
+     *
+     * @return
+     */
+    public static AppModule getInstance() {
+        if (sAppModule == null) {
+            synchronized (AppModule.class) {
+                if (sAppModule == null) {
+                    sAppModule = new AppModule();
+                }
+            }
+        }
+
+        return sAppModule;
+    }
 
     public AppModule() {
     }
 
-
-    @Override
+    /**
+     * 加载模块
+     */
     public void load() {
-
+        synchronized (lock) {
+            if(!loaded){
+                loaded = true;
+                appManager = new AppManager();
+            }
+        }
     }
 
-    @Override
-    public void unload() {
-
+    /**
+     * app管理
+     *
+     * @return
+     */
+    public AppManager getAppManager(){
+        if(appManager == null){
+            load();
+        }
+        return appManager;
     }
+
 }
