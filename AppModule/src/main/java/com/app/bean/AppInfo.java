@@ -1,8 +1,11 @@
 package com.app.bean;
 
+import android.content.pm.ApplicationInfo;
 import android.graphics.drawable.Drawable;
 
 /**
+ * app信息
+ *
  * Created by wangjiangpeng01 on 2017/3/31.
  */
 
@@ -14,6 +17,7 @@ public class AppInfo {
     private int versionCode;//版本号
     private String versionName;//版本名
     private String sourceDir;//安装路径
+    private int flags;//标志
 
     public String getLable() {
         return lable;
@@ -62,4 +66,21 @@ public class AppInfo {
     public void setSourceDir(String sourceDir) {
         this.sourceDir = sourceDir;
     }
+
+    public int getFlags() {
+        return flags;
+    }
+
+    public void setFlags(int flags) {
+        this.flags = flags;
+    }
+
+    public boolean isSystemApp(){
+        return ((flags & ApplicationInfo.FLAG_SYSTEM) != 0) || ((flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0);
+    }
+
+    public boolean isUserApp(){
+        return ((flags & ApplicationInfo.FLAG_SYSTEM) == 0) && ((flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0);
+    }
+
 }

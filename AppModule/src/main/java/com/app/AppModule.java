@@ -1,11 +1,5 @@
 package com.app;
 
-import android.util.Log;
-
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import base.library.task.TaskThreadPool;
-
 /**
  * 模块
  * 负责程序管理，应用下载

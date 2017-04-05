@@ -9,6 +9,7 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import com.app.AppManager;
 import com.app.AppModule;
 import com.app.bean.AppInfo;
 
@@ -19,10 +20,10 @@ import base.library.BaseActivity;
 /**
  * Created by wangjiangpeng01 on 2017/3/31.
  */
-
-public class AppManagerActivity extends BaseActivity {
+public class AppManagerActivity extends BaseActivity implements AppManager.OnAppStateListener {
 
     private ListView listView;
+    private AppListAdapter adapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,8 +32,15 @@ public class AppManagerActivity extends BaseActivity {
         setContentView(R.layout.app_manager);
 
         listView = (ListView) findViewById(R.id.app_manager_list);
-        AppListAdapter adapter = new AppListAdapter();
+        adapter = new AppListAdapter();
         listView.setAdapter(adapter);
+
+        AppModule.getInstance().getAppManager().addOnAppStateListener(this);
+    }
+
+    @Override
+    public void onAppStateChanged() {
+        adapter.notifyDataSetChanged();
     }
 
     private class AppListAdapter extends BaseAdapter {
@@ -40,7 +48,7 @@ public class AppManagerActivity extends BaseActivity {
         private List<AppInfo> appInfos;
 
         public AppListAdapter() {
-            appInfos = AppModule.getInstance().getAppManager().getInstalledApps();
+            appInfos = AppModule.getInstance().getAppManager().getUserApps();
         }
 
         @Override
@@ -56,6 +64,13 @@ public class AppManagerActivity extends BaseActivity {
         @Override
         public long getItemId(int position) {
             return 0;
+        }
+
+        @Override
+        public void notifyDataSetChanged() {
+            appInfos = AppModule.getInstance().getAppManager().getUserApps();
+
+            super.notifyDataSetChanged();
         }
 
         @Override
