@@ -1,7 +1,5 @@
 package com.app.demo;
 
-import android.app.Activity;
-import android.content.pm.PackageInfo;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -9,18 +7,17 @@ import android.widget.Button;
 
 import com.app.demo.task.TestTask;
 
-import java.util.List;
-
 import base.library.BaseActivity;
 import base.library.task.ATask;
-import base.library.task.TaskManager;
+import base.library.task.TaskCallbacks;
+import base.library.task.TaskPool;
 
 /**
  * 测试
  * <p>
  * Created by wangjiangpeng01 on 2016/12/21.
  */
-public class TaskActivity extends BaseActivity implements View.OnClickListener, TaskManager.ResultCallbacks {
+public class TaskActivity extends BaseActivity implements View.OnClickListener, TaskCallbacks {
 
     private static final String TAG = "TaskActivity";
 
@@ -38,8 +35,8 @@ public class TaskActivity extends BaseActivity implements View.OnClickListener, 
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.task_btn1: {
-                TaskManager taskManager = TaskManager.getInstance();
-                taskManager.restartTask(TestTask.class, this);
+                TestTask task = TaskPool.getTask(TestTask.class);
+                task.reExecute(this);
             }
             break;
         }

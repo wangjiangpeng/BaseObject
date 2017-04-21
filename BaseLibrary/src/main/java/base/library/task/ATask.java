@@ -14,8 +14,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import base.library.task.TaskManager.ResultCallbacks;
-
 /**
  * 抽象任务
  * <p>
@@ -58,12 +56,14 @@ public abstract class ATask<Progress> {
     /**
      * 弱引用，防止对象无法释放
      */
-    private WeakReference<ResultCallbacks> weakReceiver;
+    private WeakReference<TaskCallbacks> weakReceiver;
 
     /**
      * 执行结果
      */
     private Object result;
+
+    private static ThreadPool sTaskPool = new ThreadPool();
 
     public ATask() {
         mStatus = Status.PENDING;
@@ -85,12 +85,13 @@ public abstract class ATask<Progress> {
     /**
      * 执行任务
      *
-     * @param objs 执行参数
+     * @param callbacks 回调
+     * @param objs      执行参数
      */
-    public void execute(ResultCallbacks callbacks, Object... objs) {
+    public void execute(TaskCallbacks callbacks, Object... objs) {
         boolean execute = preExecute(callbacks, objs);
         if (execute) {
-            TaskThreadPool.execute(mFuture);
+            sTaskPool.execute(mFuture);
         } else {
             if (callbacks != null) {
                 callbacks.onFinished(this, result);
@@ -99,22 +100,52 @@ public abstract class ATask<Progress> {
     }
 
     /**
+     * 重新执行任务
+     *
+     * @param callbacks 回调
+     * @param objs      执行参数
+     * @return
+     */
+    public boolean reExecute(TaskCallbacks callbacks, Object... objs) {
+        if (reset()) {
+            execute(callbacks, objs);
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * 顺序执行任务，有依赖关系的任务可调用此方法
      *
      * @param objs 执行参数
      */
-    public void executeSerial(ResultCallbacks callbacks, Object... objs) {
+    public void executeSerial(TaskCallbacks callbacks, Object... objs) {
         boolean execute = preExecute(callbacks, objs);
         if (execute) {
-            TaskThreadPool.executeSerial(mFuture);
-        }else {
+            sTaskPool.executeSerial(mFuture);
+        } else {
             if (callbacks != null) {
                 callbacks.onFinished(this, result);
             }
         }
     }
 
-    private boolean preExecute(ResultCallbacks callbacks, Object... objs) {
+    /**
+     * 重新顺序执行任务
+     *
+     * @param callbacks 回调
+     * @param objs      执行参数
+     * @return
+     */
+    public boolean reExecuteSerial(TaskCallbacks callbacks, Object... objs) {
+        if (reset()) {
+            execute(callbacks, objs);
+            return true;
+        }
+        return false;
+    }
+
+    private boolean preExecute(TaskCallbacks callbacks, Object... objs) {
         if (mStatus != Status.PENDING) {
             return false;
         } else {
@@ -171,9 +202,9 @@ public abstract class ATask<Progress> {
      * 重置任务
      * 重置正在执行的任务，会抛出异常
      */
-    public void reset(){
-        if(mStatus == Status.RUNNING){
-            throw new IllegalStateException("Cannot reset task:" + " the task is already running.");
+    public boolean reset() {
+        if (mStatus == Status.RUNNING) {
+            return false;
         }
 
         mStatus = Status.PENDING;
@@ -183,6 +214,7 @@ public abstract class ATask<Progress> {
         result = null;
         mWorker = null;
         mFuture = null;
+        return true;
     }
 
     /**
@@ -228,7 +260,7 @@ public abstract class ATask<Progress> {
      *
      * @return
      */
-    public Object getResult(){
+    public Object getResult() {
         return result;
     }
 
@@ -240,7 +272,7 @@ public abstract class ATask<Progress> {
         } else {
             onPostExecute(result);
 
-            ResultCallbacks callbacks = weakReceiver.get();
+            TaskCallbacks callbacks = weakReceiver.get();
             if (callbacks != null) {
                 callbacks.onFinished(this, result);
             }

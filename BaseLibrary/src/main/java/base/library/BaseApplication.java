@@ -2,13 +2,14 @@ package base.library;
 
 import android.app.Application;
 
+import base.library.task.ATask;
 import base.library.task.EnvInitTask;
-import base.library.task.TaskManager;
+import base.library.task.TaskPool;
 
 /**
  * Created by wangjiangpeng01 on 2016/11/23.
  */
-public abstract class BaseApplication extends Application {
+public class BaseApplication extends Application {
 
     private static BaseApplication application;
 
@@ -22,13 +23,17 @@ public abstract class BaseApplication extends Application {
         super.onCreate();
 
         application = this;
-        TaskManager.getInstance().restartSerialTask(EnvInitTask.class, null);
+
+        ATask task = TaskPool.getTask(EnvInitTask.class);
+        task.executeSerial(null);
     }
 
     /**
      * 环境初始化，在环境初始化任务中被调用
+     * (适用程序运行所必须的，耗时的数据初始化)
      */
-    public abstract void envInit();
+    public void envInit(){
+    }
 
 
 }

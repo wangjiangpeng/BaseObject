@@ -9,12 +9,14 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static base.library.task.TaskPool.getTask;
+
 /**
  * 任务线程池
  * <p>
  * Created by wangjiangpeng01 on 2016/12/19.
  */
-public class TaskThreadPool {
+public class ThreadPool {
 
     private static final int CPU_COUNT = Runtime.getRuntime().availableProcessors();
     private static final int CORE_POOL_SIZE = CPU_COUNT + 1;
@@ -26,26 +28,7 @@ public class TaskThreadPool {
     private final Executor mThreadPoolExecutor;
     private final Executor mSerialExecutor;
 
-    private static TaskThreadPool sTaskPool;
-
-    /**
-     * 单例
-     *
-     * @return
-     */
-    public static TaskThreadPool getInstance() {
-        if (sTaskPool == null) {
-            synchronized (TaskThreadPool.class) {
-                if (sTaskPool == null) {
-                    sTaskPool = new TaskThreadPool();
-                }
-            }
-        }
-
-        return sTaskPool;
-    }
-
-    private TaskThreadPool() {
+    protected ThreadPool() {
         mThreadFactory = new ThreadFactory() {
             private final AtomicInteger mCount = new AtomicInteger(1);
 
@@ -65,16 +48,16 @@ public class TaskThreadPool {
      *
      * @param runnable
      */
-    public static void execute(Runnable runnable) {
-        ATask task = TaskManager.getInstance().getTask(EnvInitTask.class);
+    public void execute(Runnable runnable) {
+        ATask task = TaskPool.getTask(EnvInitTask.class);
         if (task.isFinished()) {
-            getInstance().mThreadPoolExecutor.execute(runnable);
+            mThreadPoolExecutor.execute(runnable);
 
         } else {
             if (!task.isRunning()) {
                 task.executeSerial(null);
             }
-            getInstance().mSerialExecutor.execute(runnable);
+            mSerialExecutor.execute(runnable);
         }
     }
 
@@ -84,8 +67,8 @@ public class TaskThreadPool {
      *
      * @param runnable
      */
-    public static void executeSerial(Runnable runnable) {
-        getInstance().mSerialExecutor.execute(runnable);
+    public void executeSerial(Runnable runnable) {
+        mSerialExecutor.execute(runnable);
     }
 
     /**

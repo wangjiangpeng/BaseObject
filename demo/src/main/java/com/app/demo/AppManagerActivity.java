@@ -16,6 +16,7 @@ import com.app.bean.AppInfo;
 import java.util.List;
 
 import base.library.BaseActivity;
+import base.library.module.ModuleManager;
 
 /**
  * Created by wangjiangpeng01 on 2017/3/31.
@@ -24,6 +25,8 @@ public class AppManagerActivity extends BaseActivity implements AppManager.OnApp
 
     private ListView listView;
     private AppListAdapter adapter;
+
+    private AppManager appManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,7 +38,8 @@ public class AppManagerActivity extends BaseActivity implements AppManager.OnApp
         adapter = new AppListAdapter();
         listView.setAdapter(adapter);
 
-        AppModule.getInstance().getAppManager().addOnAppStateListener(this);
+        appManager = ModuleManager.getInstance().getModule(AppModule.class).getAppManager();
+        appManager.addOnAppStateListener(this);
     }
 
     @Override
@@ -48,7 +52,8 @@ public class AppManagerActivity extends BaseActivity implements AppManager.OnApp
         private List<AppInfo> appInfos;
 
         public AppListAdapter() {
-            appInfos = AppModule.getInstance().getAppManager().getUserApps();
+            AppModule module = ModuleManager.getInstance().getModule(AppModule.class);
+            appInfos = module.getAppManager().getUserApps();
         }
 
         @Override
@@ -68,7 +73,7 @@ public class AppManagerActivity extends BaseActivity implements AppManager.OnApp
 
         @Override
         public void notifyDataSetChanged() {
-            appInfos = AppModule.getInstance().getAppManager().getUserApps();
+            appInfos = appManager.getUserApps();
 
             super.notifyDataSetChanged();
         }
@@ -104,6 +109,5 @@ public class AppManagerActivity extends BaseActivity implements AppManager.OnApp
         TextView packageName;
         TextView version;
     }
-
 
 }

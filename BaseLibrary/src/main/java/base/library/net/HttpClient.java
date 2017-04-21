@@ -7,6 +7,8 @@ import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
 import com.squareup.okhttp.Response;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.KeyStore;
@@ -52,7 +54,7 @@ import base.library.BaseApplication;
  * <p>
  * Created by wangjiangpeng01 on 2017/1/10.
  */
-public class HttpRequest {
+public class HttpClient {
 
     private static final long DEFAULT_CONNECT_TIMEOUT = 30000;
 
@@ -66,32 +68,8 @@ public class HttpRequest {
      * @throws IOException
      */
     public ResponseData request(RequestParam param) {
-        OkHttpClient client = new OkHttpClient();
-        client.setConnectTimeout(param.getConnectTimeout() > 0 ? param.getConnectTimeout() : DEFAULT_CONNECT_TIMEOUT, TimeUnit.MILLISECONDS);
-        client.setReadTimeout(param.getReadTimeout() > 0 ? param.getReadTimeout() : DEFAULT_READ_TIMEOUT, TimeUnit.MILLISECONDS);
-        // https
-        if (param.isHttps()) {
-            client.setSslSocketFactory(createSSLSocketFactory(param));
-            // 域名验证视需求而定
-            client.setHostnameVerifier(org.apache.http.conn.ssl.SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
-        }
-        // 地址
-        Request.Builder rBuilder = new Request.Builder();
-        rBuilder.url(param.getUrl());
-        // 头部
-        Map<String, String> headers = param.getHeaders();
-        for (String key : headers.keySet()) {
-            rBuilder.addHeader(key, headers.get(key));
-        }
-        // post
-        headers = param.getPosts();
-        if (headers.size() > 0) {
-            FormEncodingBuilder feBuilder = new FormEncodingBuilder();
-            for (String key : headers.keySet()) {
-                feBuilder.add(key, headers.get(key));
-            }
-            rBuilder.post(feBuilder.build());
-        }
+        OkHttpClient client = createOkHttps(param);
+        Request.Builder rBuilder = createRequestBuilder(param);
         // 执行请求
         ResponseData responseData = new ResponseData();
         Request request = rBuilder.build();
@@ -110,6 +88,91 @@ public class HttpRequest {
         }
 
         return responseData;
+    }
+
+    /**
+     * 下载
+     */
+    public ResponseData download(DownloadParam param, DownloadListener listener){
+        OkHttpClient client = createOkHttps(param);
+        Request.Builder rBuilder = createRequestBuilder(param);
+        // 下载
+        ResponseData responseData = new ResponseData();
+        Request request = rBuilder.build();
+        InputStream is = null;
+        FileOutputStream fos = null;
+        try {
+            Response response = client.newCall(request).execute();
+            is = response.body().byteStream();
+            long total = response.body().contentLength();
+            File file = new File(param.getDownloadPath());
+            fos = new FileOutputStream(file);
+            int len = 0;
+            long sum = 0;
+            byte[] buf = new byte[2048];
+            while ((len = is.read(buf)) != -1) {
+                fos.write(buf, 0, len);
+                sum += len;
+                if(listener != null){
+                    listener.onDownloaded(total, sum);
+                }
+            }
+
+        }catch (Exception e){
+            e.printStackTrace();
+
+        }finally {
+            if(is != null){
+                try {
+                    is.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            if(fos != null){
+                try {
+                    fos.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        return responseData;
+    }
+
+    private OkHttpClient createOkHttps(RequestParam param){
+        OkHttpClient client = new OkHttpClient();
+        client.setConnectTimeout(param.getConnectTimeout() > 0 ? param.getConnectTimeout() : DEFAULT_CONNECT_TIMEOUT, TimeUnit.MILLISECONDS);
+        client.setReadTimeout(param.getReadTimeout() > 0 ? param.getReadTimeout() : DEFAULT_READ_TIMEOUT, TimeUnit.MILLISECONDS);
+        // https
+        if (param.isHttps()) {
+            client.setSslSocketFactory(createSSLSocketFactory(param));
+            // 域名验证视需求而定
+            client.setHostnameVerifier(org.apache.http.conn.ssl.SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
+        }
+        return client;
+    }
+
+    private Request.Builder createRequestBuilder(RequestParam param){
+        // 地址
+        Request.Builder rBuilder = new Request.Builder();
+        rBuilder.url(param.getUrl());
+        // 头部
+        Map<String, String> headers = param.getHeaders();
+        for (String key : headers.keySet()) {
+            rBuilder.addHeader(key, headers.get(key));
+        }
+        // post
+        Map<String, String> posts = param.getPosts();
+        if (posts.size() > 0) {
+            FormEncodingBuilder feBuilder = new FormEncodingBuilder();
+            for (String key : posts.keySet()) {
+                feBuilder.add(key, posts.get(key));
+            }
+            rBuilder.post(feBuilder.build());
+        }
+        return rBuilder;
     }
 
     private SSLSocketFactory createSSLSocketFactory(RequestParam param) {

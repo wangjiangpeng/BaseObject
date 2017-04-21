@@ -1,6 +1,7 @@
 package base.library.task;
 
 import base.library.BaseApplication;
+import base.library.module.ModuleManager;
 
 /**
  * 环境初始化
@@ -13,6 +14,8 @@ public class EnvInitTask extends ATask {
 
     @Override
     protected Object doInBackground(Object... objs) {
+        ModuleManager.getInstance().initLoad();
+
         BaseApplication application = BaseApplication.getInstance();
         application.envInit();
 
@@ -20,8 +23,8 @@ public class EnvInitTask extends ATask {
     }
 
     @Override
-    public void execute(TaskManager.ResultCallbacks callbacks, Object... objs) {
-        throw new RuntimeException("can not use");
+    public void execute(TaskCallbacks callbacks, Object... objs) {
+        throw new RuntimeException("can not support");
     }
 
 }

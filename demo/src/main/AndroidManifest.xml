@@ -22,7 +22,7 @@
         <activity android:name=".TaskActivity"/>
         <activity android:name=".AppManagerActivity"/>
 
-        
+
     </application>
 
 </manifest>
