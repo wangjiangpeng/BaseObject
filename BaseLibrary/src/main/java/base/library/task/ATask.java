@@ -6,6 +6,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.Process;
+import android.util.Log;
 
 import java.lang.ref.WeakReference;
 import java.util.concurrent.Callable;
@@ -88,7 +89,7 @@ public abstract class ATask<Progress> {
      * @param callbacks 回调
      * @param objs      执行参数
      */
-    public void execute(TaskCallbacks callbacks, Object... objs) {
+    public synchronized void execute(TaskCallbacks callbacks, Object... objs) {
         boolean execute = preExecute(callbacks, objs);
         if (execute) {
             sTaskPool.execute(mFuture);
@@ -106,7 +107,7 @@ public abstract class ATask<Progress> {
      * @param objs      执行参数
      * @return
      */
-    public boolean reExecute(TaskCallbacks callbacks, Object... objs) {
+    public synchronized boolean reExecute(TaskCallbacks callbacks, Object... objs) {
         if (reset()) {
             execute(callbacks, objs);
             return true;
@@ -119,7 +120,7 @@ public abstract class ATask<Progress> {
      *
      * @param objs 执行参数
      */
-    public void executeSerial(TaskCallbacks callbacks, Object... objs) {
+    public synchronized void executeSerial(TaskCallbacks callbacks, Object... objs) {
         boolean execute = preExecute(callbacks, objs);
         if (execute) {
             sTaskPool.executeSerial(mFuture);
@@ -137,7 +138,7 @@ public abstract class ATask<Progress> {
      * @param objs      执行参数
      * @return
      */
-    public boolean reExecuteSerial(TaskCallbacks callbacks, Object... objs) {
+    public synchronized boolean reExecuteSerial(TaskCallbacks callbacks, Object... objs) {
         if (reset()) {
             execute(callbacks, objs);
             return true;
@@ -166,7 +167,7 @@ public abstract class ATask<Progress> {
                     try {
                         postResultIfNotInvoked(get());
                     } catch (InterruptedException e) {
-                        android.util.Log.w(LOG_TAG, e);
+                        Log.w(LOG_TAG, e);
                     } catch (ExecutionException e) {
                         throw new RuntimeException("An error occurred while executing doInBackground()",
                                 e.getCause());

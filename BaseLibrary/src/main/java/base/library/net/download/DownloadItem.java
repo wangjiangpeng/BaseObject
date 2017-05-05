@@ -1,4 +1,4 @@
-package base.library.net;
+package base.library.net.download;
 
 /**
  * Created by wangjiangpeng01 on 2017/4/21.

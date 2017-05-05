@@ -7,7 +7,7 @@ import android.database.sqlite.SQLiteDatabase;
 import java.util.concurrent.locks.ReentrantLock;
 
 import base.library.BaseApplication;
-import base.library.net.DownloadItem;
+import base.library.net.download.DownloadItem;
 import base.library.store.DBHelper.DownloadColumns;
 
 /**
@@ -41,13 +41,13 @@ public class BaseDao {
     }
 
     /**
-     * 增加下载记录
+     * 插入下载记录
      *
      * @param url
      * @param downloadPath
      * @return
      */
-    public long addDownload(String url, String downloadPath) {
+    public long insertDownload(String url, String downloadPath) {
         ContentValues values = new ContentValues();
         values.put(DownloadColumns.URL, url);
         values.put(DownloadColumns.PATH, downloadPath);

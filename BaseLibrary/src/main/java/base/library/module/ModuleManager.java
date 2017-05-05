@@ -109,12 +109,12 @@ public class ModuleManager {
                     if (Module.class.isAssignableFrom(cls) && !Module.class.equals(cls)) {
                         list.add(className);
                     }
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     e.printStackTrace();
                 }
             }
 
-        } catch (IOException e) {
+        } catch (Throwable e) {
             e.printStackTrace();
         }
         return list;

@@ -8,9 +8,9 @@ import com.squareup.okhttp.Request;
 import com.squareup.okhttp.Response;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.RandomAccessFile;
 import java.security.KeyStore;
 import java.security.SecureRandom;
 import java.util.Map;
@@ -20,16 +20,20 @@ import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
 import base.library.BaseApplication;
+import base.library.net.download.DownloadListener;
+import base.library.net.download.DownloadParam;
+import base.library.net.download.IDownloadManager;
 
 /**
  * 网络请求
  * <p>
  * keytool命令如下：
- * -genkey     在用户主目录中创建一个默认文件".jks",还会产生一个server_jks_cennavi的别名，server_jks_cennavi中包含用户的公钥、私钥和证书
- * -alias      产生别名server_jks_testws
+ * -genkey     在用户主目录中创建一个默认文件".jks",还会产生一个别名，别名中包含用户的公钥、私钥和证书
+ * -alias      产生别名
  * -keystore   指定密钥库的名称(产生的各类信息将不在.jks文件中
  * -keyalg     指定密钥的算法
  * -validity   指定创建的证书有效期多少天
@@ -46,11 +50,11 @@ import base.library.BaseApplication;
  * 客户端密钥导出为一个单独的CER文件
  * keytool -export -alias "client" -keystore "f:\client.keystore" -file "f:\client.cer" -storetype BKS -provider org.bouncycastle.jce.provider.BouncyCastleProvider
  * 服务器密钥导出为一个单独的CER文件
- * keytool -export -alias "tomcat" -keystore "f:\server.keystore" -file "f:\tserver.cer"
+ * keytool -export -alias "tomcat" -keystore "f:\server.keystore" -file "f:\server.cer"
  * CER文件导入到服务器的密钥库，添加为一个信任证书
  * keytool -import -alias "client" -keystore "f:\servertrust.keystore" -file "f:\client.cer"
  * CER文件导入到客户端的密钥库，添加为一个信任证书
- * keytool -import -alias "tomcat" -keystore "f:\clienttrust.keystore" -file "f:\tserver.cer" -storetype BKS -provider org.bouncycastle.jce.provider.BouncyCastleProvider
+ * keytool -import -alias "tomcat" -keystore "f:\clienttrust.keystore" -file "f:\server.cer" -storetype BKS -provider org.bouncycastle.jce.provider.BouncyCastleProvider
  * <p>
  * Created by wangjiangpeng01 on 2017/1/10.
  */
@@ -93,45 +97,61 @@ public class HttpClient {
     /**
      * 下载
      */
-    public ResponseData download(DownloadParam param, DownloadListener listener){
+    public ResponseData download(DownloadParam param, DownloadListener listener) {
         OkHttpClient client = createOkHttps(param);
         Request.Builder rBuilder = createRequestBuilder(param);
+
+        // 头部续传参数
+        File file = new File(param.getDownloadPath());
+        if (param.getRange() != 0 && file.exists()) {
+            rBuilder.addHeader("RANGE", "bytes=" + param.getRange() + "-");
+        }
         // 下载
         ResponseData responseData = new ResponseData();
         Request request = rBuilder.build();
         InputStream is = null;
-        FileOutputStream fos = null;
+        RandomAccessFile raf = null;
         try {
             Response response = client.newCall(request).execute();
             is = response.body().byteStream();
             long total = response.body().contentLength();
-            File file = new File(param.getDownloadPath());
-            fos = new FileOutputStream(file);
-            int len = 0;
-            long sum = 0;
-            byte[] buf = new byte[2048];
-            while ((len = is.read(buf)) != -1) {
-                fos.write(buf, 0, len);
-                sum += len;
-                if(listener != null){
-                    listener.onDownloaded(total, sum);
+            if (file.exists()) {
+                raf = new RandomAccessFile(param.getDownloadPath(), "rw");
+                raf.seek(param.getRange());
+
+            } else {
+                file.createNewFile();
+                raf = new RandomAccessFile(param.getDownloadPath(), "rw");
+                if(total > 0){
+                    raf.setLength(total);
                 }
             }
 
-        }catch (Exception e){
+            int len = 0;
+            long sum = 0;
+            byte[] buf = new byte[1024];
+            while (((len = is.read(buf)) != -1) && param.getState() == IDownloadManager.STATE_DOWNLOADING) {
+                raf.write(buf, 0, len);
+                sum += len;
+                if (listener != null) {
+//                    listener.onDownloaded(total, sum);
+                }
+            }
+
+        } catch (Exception e) {
             e.printStackTrace();
 
-        }finally {
-            if(is != null){
+        } finally {
+            if (is != null) {
                 try {
                     is.close();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
-            if(fos != null){
+            if (raf != null) {
                 try {
-                    fos.close();
+                    raf.close();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -141,7 +161,7 @@ public class HttpClient {
         return responseData;
     }
 
-    private OkHttpClient createOkHttps(RequestParam param){
+    private OkHttpClient createOkHttps(RequestParam param) {
         OkHttpClient client = new OkHttpClient();
         client.setConnectTimeout(param.getConnectTimeout() > 0 ? param.getConnectTimeout() : DEFAULT_CONNECT_TIMEOUT, TimeUnit.MILLISECONDS);
         client.setReadTimeout(param.getReadTimeout() > 0 ? param.getReadTimeout() : DEFAULT_READ_TIMEOUT, TimeUnit.MILLISECONDS);
@@ -154,7 +174,7 @@ public class HttpClient {
         return client;
     }
 
-    private Request.Builder createRequestBuilder(RequestParam param){
+    private Request.Builder createRequestBuilder(RequestParam param) {
         // 地址
         Request.Builder rBuilder = new Request.Builder();
         rBuilder.url(param.getUrl());
@@ -186,6 +206,7 @@ public class HttpClient {
             TrustManagerFactory trustManager = TrustManagerFactory.getInstance("X509");
             trustKeyStore.load(trustInputStream, param.getTrustStorePass().toCharArray());
             trustManager.init(trustKeyStore);
+            TrustManager[] trustManagers = trustManager.getTrustManagers();
 
             // 双向验证时，客户端密钥加载
             KeyManager[] keyManagers = null;
@@ -199,7 +220,7 @@ public class HttpClient {
             }
 
             SSLContext sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(keyManagers, trustManager.getTrustManagers(), new SecureRandom());
+            sslContext.init(keyManagers, trustManagers, new SecureRandom());
 
             return sslContext.getSocketFactory();
 
