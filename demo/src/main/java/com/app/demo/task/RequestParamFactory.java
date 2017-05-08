@@ -24,9 +24,11 @@ public class RequestParamFactory {
         RequestParam requestParam = new RequestParam();
         requestParam.setDomain(DEFAULT_DOMAIN);
         requestParam.addHeader("phonetype", "SAMSUNG");
-        requestParam.setSSLMutual(false);
-        requestParam.setTrustStoreId(R.raw.server);
+        requestParam.setSSLMutual(true);
+        requestParam.setTrustStoreId(R.raw.client);
         requestParam.setTrustStorePass("123456");
+        requestParam.setKeyStoreId(R.raw.client);
+        requestParam.setKeyStorePass("123456");
 
         return requestParam;
     }

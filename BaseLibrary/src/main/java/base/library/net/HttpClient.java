@@ -13,6 +13,9 @@ import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.security.KeyStore;
 import java.security.SecureRandom;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -27,6 +30,8 @@ import base.library.BaseApplication;
 import base.library.net.download.DownloadListener;
 import base.library.net.download.DownloadParam;
 import base.library.net.download.IDownloadManager;
+
+import static android.R.attr.key;
 
 /**
  * 网络请求
@@ -43,18 +48,18 @@ import base.library.net.download.IDownloadManager;
  * -dname      指定证书拥有者信息
  * <p>
  * <p>
- * 生成服务器密钥
- * keytool -genkey -alias "tomcat" -keyalg "RSA" -keystore "f:\server.keystore"
- * 生成客户端密钥（android只支持BKS格式）
+ * 生成服务器密钥库
+ * keytool -genkey -alias "server" -keyalg "RSA" -keystore "f:\server.keystore"
+ * 生成客户端密钥库（android只支持BKS格式 -provider BKS所需要支持的包）
  * keytool -genkey -alias "client" -keyalg "RSA" -keystore "f:\client.keystore" -storetype BKS -provider org.bouncycastle.jce.provider.BouncyCastleProvider
- * 客户端密钥导出为一个单独的CER文件
+ * 服务器密钥导出为一个单独的CER证书
+ * keytool -export -alias "server" -keystore "f:\server.keystore" -file "f:\server.cer"
+ * 客户端密钥导出为一个单独的CER证书
  * keytool -export -alias "client" -keystore "f:\client.keystore" -file "f:\client.cer" -storetype BKS -provider org.bouncycastle.jce.provider.BouncyCastleProvider
- * 服务器密钥导出为一个单独的CER文件
- * keytool -export -alias "tomcat" -keystore "f:\server.keystore" -file "f:\server.cer"
- * CER文件导入到服务器的密钥库，添加为一个信任证书
- * keytool -import -alias "client" -keystore "f:\servertrust.keystore" -file "f:\client.cer"
- * CER文件导入到客户端的密钥库，添加为一个信任证书
- * keytool -import -alias "tomcat" -keystore "f:\clienttrust.keystore" -file "f:\server.cer" -storetype BKS -provider org.bouncycastle.jce.provider.BouncyCastleProvider
+ * CER证书导入到服务器的密钥库，添加为一个信任证书
+ * keytool -import -alias "client" -keystore "f:\server.keystore" -file "f:\client.cer"
+ * CER证书导入到客户端的密钥库，添加为一个信任证书
+ * keytool -import -alias "server" -keystore "f:\client.keystore" -file "f:\server.cer" -storetype BKS -provider org.bouncycastle.jce.provider.BouncyCastleProvider
  * <p>
  * Created by wangjiangpeng01 on 2017/1/10.
  */
