@@ -32,7 +32,7 @@ public class AppManager {
 
     private List<WeakReference<OnAppStateListener>> listenerList = new ArrayList<>();
 
-    public AppManager() {
+    protected AppManager() {
         Application app = BaseApplication.getInstance();
         packageManager = app.getPackageManager();
 

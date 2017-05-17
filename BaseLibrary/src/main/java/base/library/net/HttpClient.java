@@ -7,15 +7,10 @@ import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
 import com.squareup.okhttp.Response;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.RandomAccessFile;
 import java.security.KeyStore;
 import java.security.SecureRandom;
-import java.security.cert.Certificate;
-import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -27,11 +22,6 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
 import base.library.BaseApplication;
-import base.library.net.download.DownloadListener;
-import base.library.net.download.DownloadParam;
-import base.library.net.download.IDownloadManager;
-
-import static android.R.attr.key;
 
 /**
  * 网络请求
@@ -99,74 +89,7 @@ public class HttpClient {
         return responseData;
     }
 
-    /**
-     * 下载
-     */
-    public ResponseData download(DownloadParam param, DownloadListener listener) {
-        OkHttpClient client = createOkHttps(param);
-        Request.Builder rBuilder = createRequestBuilder(param);
-
-        // 头部续传参数
-        File file = new File(param.getDownloadPath());
-        if (param.getRange() != 0 && file.exists()) {
-            rBuilder.addHeader("RANGE", "bytes=" + param.getRange() + "-");
-        }
-        // 下载
-        ResponseData responseData = new ResponseData();
-        Request request = rBuilder.build();
-        InputStream is = null;
-        RandomAccessFile raf = null;
-        try {
-            Response response = client.newCall(request).execute();
-            is = response.body().byteStream();
-            long total = response.body().contentLength();
-            if (file.exists()) {
-                raf = new RandomAccessFile(param.getDownloadPath(), "rw");
-                raf.seek(param.getRange());
-
-            } else {
-                file.createNewFile();
-                raf = new RandomAccessFile(param.getDownloadPath(), "rw");
-                if(total > 0){
-                    raf.setLength(total);
-                }
-            }
-
-            int len = 0;
-            long sum = 0;
-            byte[] buf = new byte[1024];
-            while (((len = is.read(buf)) != -1) && param.getState() == IDownloadManager.STATE_DOWNLOADING) {
-                raf.write(buf, 0, len);
-                sum += len;
-                if (listener != null) {
-//                    listener.onDownloaded(total, sum);
-                }
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-
-        } finally {
-            if (is != null) {
-                try {
-                    is.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-            if (raf != null) {
-                try {
-                    raf.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-
-        return responseData;
-    }
-
-    private OkHttpClient createOkHttps(RequestParam param) {
+    protected OkHttpClient createOkHttps(RequestParam param) {
         OkHttpClient client = new OkHttpClient();
         client.setConnectTimeout(param.getConnectTimeout() > 0 ? param.getConnectTimeout() : DEFAULT_CONNECT_TIMEOUT, TimeUnit.MILLISECONDS);
         client.setReadTimeout(param.getReadTimeout() > 0 ? param.getReadTimeout() : DEFAULT_READ_TIMEOUT, TimeUnit.MILLISECONDS);
@@ -179,7 +102,7 @@ public class HttpClient {
         return client;
     }
 
-    private Request.Builder createRequestBuilder(RequestParam param) {
+    protected Request.Builder createRequestBuilder(RequestParam param) {
         // 地址
         Request.Builder rBuilder = new Request.Builder();
         rBuilder.url(param.getUrl());
@@ -200,7 +123,7 @@ public class HttpClient {
         return rBuilder;
     }
 
-    private SSLSocketFactory createSSLSocketFactory(RequestParam param) {
+    protected SSLSocketFactory createSSLSocketFactory(RequestParam param) {
         InputStream trustInputStream = null;
         InputStream inputStream = null;
         try {

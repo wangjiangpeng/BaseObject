@@ -1,31 +1,26 @@
 package base.library.module;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
 
 import base.library.BaseApplication;
 import dalvik.system.DexFile;
 
 /**
  * 模块管理
- *
+ * <p>
  * <p>
  * Created by wangjiangpeng01 on 2017/4/18.
  */
 
 public class ModuleManager {
 
-    private final ReentrantLock takeLock;
-    private final Condition notEmpty;
+    private final Object notEmpty = new Object();
 
-    private Map<String, Module> moduleMap = new HashMap<>();
+    private HashMap<String, Module> moduleMap = new HashMap<>();
 
     private static ModuleManager sModuleManager;
 
@@ -41,8 +36,6 @@ public class ModuleManager {
     }
 
     private ModuleManager() {
-        takeLock = new ReentrantLock();
-        notEmpty = takeLock.newCondition();
     }
 
     /**
@@ -58,7 +51,7 @@ public class ModuleManager {
                 Class cls = Class.forName(name);
                 Module module = (Module) cls.newInstance();
                 moduleMap.put(name, module);
-                notEmpty.signalAll();
+                notEmpty.notifyAll();
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -83,7 +76,7 @@ public class ModuleManager {
         D module;
         while ((module = (D) moduleMap.get(cls.getName())) == null) {
             try {
-                notEmpty.await();
+                notEmpty.wait();
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }

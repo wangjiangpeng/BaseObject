@@ -1,4 +1,4 @@
-package base.library.task;
+package com.download;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executor;
@@ -9,11 +9,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 任务线程池
- * <p>
- * Created by wangjiangpeng01 on 2016/12/19.
+ * 下载池
+ *
+ * Created by wangjiangpeng01 on 2017/5/16.
  */
-public class ThreadPool implements Executor {
+
+public class DownloadPool implements Executor {
 
     private static final int CPU_COUNT = Runtime.getRuntime().availableProcessors();
     private static final int CORE_POOL_SIZE = CPU_COUNT + 1;
@@ -24,7 +25,7 @@ public class ThreadPool implements Executor {
     private final BlockingQueue<Runnable> mPoolWorkQueue;
     private final Executor mThreadPoolExecutor;
 
-    protected ThreadPool() {
+    protected DownloadPool() {
         mThreadFactory = new ThreadFactory() {
             private final AtomicInteger mCount = new AtomicInteger(1);
 

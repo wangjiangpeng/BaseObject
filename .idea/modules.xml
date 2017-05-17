@@ -5,6 +5,7 @@
       <module fileurl="file://$PROJECT_DIR$/AppModule/AppModule.iml" filepath="$PROJECT_DIR$/AppModule/AppModule.iml" />
       <module fileurl="file://$PROJECT_DIR$/BaseLibrary/BaseLibrary.iml" filepath="$PROJECT_DIR$/BaseLibrary/BaseLibrary.iml" />
       <module fileurl="file://$PROJECT_DIR$/BaseObject.iml" filepath="$PROJECT_DIR$/BaseObject.iml" />
+      <module fileurl="file://$PROJECT_DIR$/DownloadModule/DownloadModule.iml" filepath="$PROJECT_DIR$/DownloadModule/DownloadModule.iml" />
       <module fileurl="file://$PROJECT_DIR$/UserInterface/UserInterface.iml" filepath="$PROJECT_DIR$/UserInterface/UserInterface.iml" />
       <module fileurl="file://$PROJECT_DIR$/demo/demo.iml" filepath="$PROJECT_DIR$/demo/demo.iml" />
     </modules>

@@ -3,6 +3,9 @@ package base.library.net;
 import java.util.HashMap;
 import java.util.Map;
 
+import static android.R.attr.key;
+import static android.R.attr.value;
+
 /**
  * 网络请求参数
  * <p>
@@ -28,10 +31,6 @@ public class RequestParam {
      * get数据
      */
     private String getData;
-    /**
-     * post数据
-     */
-    private String postData;
     /**
      * ssl是否双向验证
      */
@@ -73,6 +72,10 @@ public class RequestParam {
         headers.put(key, value);
     }
 
+    public void addHeaders(Map<String, String> map) {
+        headers.putAll(map);
+    }
+
     public void removeHeader(String key) {
         headers.remove(key);
     }
@@ -83,6 +86,10 @@ public class RequestParam {
 
     public void addPost(String key, String value) {
         posts.put(key, value);
+    }
+
+    public void addPosts(Map<String, String> map) {
+        posts.putAll(map);
     }
 
     public void removePost(String key) {
@@ -99,14 +106,6 @@ public class RequestParam {
 
     public void setGetData(String getData) {
         this.getData = getData;
-    }
-
-    public String getPostData() {
-        return postData;
-    }
-
-    public void setPostData(String postData) {
-        this.postData = postData;
     }
 
     public boolean isHttps() {

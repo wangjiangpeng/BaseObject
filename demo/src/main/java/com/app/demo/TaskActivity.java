@@ -3,14 +3,13 @@ package com.app.demo;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.Button;
 
 import com.app.demo.task.TestTask;
 
 import base.library.BaseActivity;
 import base.library.task.ATask;
 import base.library.task.TaskCallbacks;
-import base.library.task.TaskPool;
+import base.library.task.TaskService;
 
 /**
  * 测试
@@ -27,16 +26,21 @@ public class TaskActivity extends BaseActivity implements View.OnClickListener, 
 
         setContentView(R.layout.task);
 
-        Button btn1 = (Button) findViewById(R.id.task_btn1);
-        btn1.setOnClickListener(this);
+        findViewById(R.id.task_btn1).setOnClickListener(this);
+        findViewById(R.id.task_btn2).setOnClickListener(this);
     }
 
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.task_btn1: {
-                TestTask task = TaskPool.getTask(TestTask.class);
+                TestTask task = TaskService.getInstance().getTask(TestTask.class);
                 task.reExecute(this);
+                break;
+            }
+            case R.id.task_btn2: {
+                TestTask task = TaskService.getInstance().getTask(TestTask.class);
+                task.cancel(true);
             }
             break;
         }

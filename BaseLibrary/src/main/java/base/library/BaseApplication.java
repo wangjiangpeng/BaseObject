@@ -4,7 +4,7 @@ import android.app.Application;
 
 import base.library.task.ATask;
 import base.library.task.EnvInitTask;
-import base.library.task.TaskPool;
+import base.library.task.TaskService;
 
 /**
  * Created by wangjiangpeng01 on 2016/11/23.
@@ -24,7 +24,7 @@ public class BaseApplication extends Application {
 
         application = this;
 
-        ATask task = TaskPool.getTask(EnvInitTask.class);
+        ATask task = TaskService.getInstance().getTask(EnvInitTask.class);
         task.executeSerial(null);
     }
 

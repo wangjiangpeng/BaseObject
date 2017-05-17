@@ -9,9 +9,11 @@ import android.os.Process;
 import android.util.Log;
 
 import java.lang.ref.WeakReference;
+import java.util.ArrayDeque;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -64,7 +66,8 @@ public abstract class ATask<Progress> {
      */
     private Object result;
 
-    private static ThreadPool sTaskPool = new ThreadPool();
+    private static final Executor sThreadPool = new ThreadPool();
+    private static final Executor mSerialExecutor = new SerialExecutor();
 
     public ATask() {
         mStatus = Status.PENDING;
@@ -90,14 +93,38 @@ public abstract class ATask<Progress> {
      * @param objs      执行参数
      */
     public synchronized void execute(TaskCallbacks callbacks, Object... objs) {
+        execute(sThreadPool, callbacks, objs);
+    }
+
+    /**
+     * 执行任务
+     * 如果环境初始化任务没有完成，那么其他任务都要依赖它执行完了在执行
+     *
+     * @param executor  任务池
+     * @param callbacks 回调
+     * @param objs      执行参数
+     */
+    public synchronized void execute(Executor executor, TaskCallbacks callbacks, Object... objs) {
         boolean execute = preExecute(callbacks, objs);
         if (execute) {
-            sTaskPool.execute(mFuture);
+            /* 保证环境初始化任务优先完成 */
+            ATask task = TaskService.getInstance().getTask(EnvInitTask.class);
+            if (task.isFinished()) {
+                executor.execute(mFuture);
+
+            } else {
+                if (!task.isRunning()) {
+                    task.executeSerial(null);
+                }
+                mSerialExecutor.execute(mFuture);
+            }
         } else {
             if (callbacks != null) {
                 callbacks.onFinished(this, result);
             }
         }
+
+
     }
 
     /**
@@ -116,6 +143,22 @@ public abstract class ATask<Progress> {
     }
 
     /**
+     * 重新执行任务
+     *
+     * @param executor  任务池
+     * @param callbacks 回调
+     * @param objs      执行参数
+     * @return
+     */
+    public synchronized boolean reExecute(Executor executor, TaskCallbacks callbacks, Object... objs) {
+        if (reset()) {
+            execute(executor, callbacks, objs);
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * 顺序执行任务，有依赖关系的任务可调用此方法
      *
      * @param objs 执行参数
@@ -123,7 +166,7 @@ public abstract class ATask<Progress> {
     public synchronized void executeSerial(TaskCallbacks callbacks, Object... objs) {
         boolean execute = preExecute(callbacks, objs);
         if (execute) {
-            sTaskPool.executeSerial(mFuture);
+            mSerialExecutor.execute(mFuture);
         } else {
             if (callbacks != null) {
                 callbacks.onFinished(this, result);
@@ -140,7 +183,7 @@ public abstract class ATask<Progress> {
      */
     public synchronized boolean reExecuteSerial(TaskCallbacks callbacks, Object... objs) {
         if (reset()) {
-            execute(callbacks, objs);
+            executeSerial(callbacks, objs);
             return true;
         }
         return false;
@@ -344,6 +387,38 @@ public abstract class ATask<Progress> {
 
     private static abstract class WorkerRunnable<Result> implements Callable<Result> {
         Object[] mParams;
+    }
+
+    /**
+     * 保证线程顺序执行
+     */
+    private static class SerialExecutor implements Executor {
+        private final ArrayDeque<Runnable> mTasks = new ArrayDeque<Runnable>();
+        private Runnable mActive;
+
+        public SerialExecutor() {
+        }
+
+        public synchronized void execute(final Runnable r) {
+            mTasks.offer(new Runnable() {
+                public void run() {
+                    try {
+                        r.run();
+                    } finally {
+                        scheduleNext();
+                    }
+                }
+            });
+            if (mActive == null) {
+                scheduleNext();
+            }
+        }
+
+        protected synchronized void scheduleNext() {
+            if ((mActive = mTasks.poll()) != null) {
+                sThreadPool.execute(mActive);
+            }
+        }
     }
 
 }
