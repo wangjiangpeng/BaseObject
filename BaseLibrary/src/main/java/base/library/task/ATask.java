@@ -123,8 +123,6 @@ public abstract class ATask<Progress> {
                 callbacks.onFinished(this, result);
             }
         }
-
-
     }
 
     /**
@@ -287,7 +285,10 @@ public abstract class ATask<Progress> {
      */
     public final boolean cancel(boolean mayInterruptIfRunning) {
         mCancelled.set(true);
-        return mFuture.cancel(mayInterruptIfRunning);
+        if (mFuture != null) {
+            return mFuture.cancel(mayInterruptIfRunning);
+        }
+        return true;
     }
 
     /**

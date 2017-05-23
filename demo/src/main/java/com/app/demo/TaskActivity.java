@@ -28,6 +28,7 @@ public class TaskActivity extends BaseActivity implements View.OnClickListener, 
 
         findViewById(R.id.task_btn1).setOnClickListener(this);
         findViewById(R.id.task_btn2).setOnClickListener(this);
+        findViewById(R.id.task_btn3).setOnClickListener(this);
     }
 
     @Override
@@ -36,11 +37,16 @@ public class TaskActivity extends BaseActivity implements View.OnClickListener, 
             case R.id.task_btn1: {
                 TestTask task = TaskService.getInstance().getTask(TestTask.class);
                 task.reExecute(this);
-                break;
             }
+            break;
+
             case R.id.task_btn2: {
                 TestTask task = TaskService.getInstance().getTask(TestTask.class);
                 task.cancel(true);
+            }
+            break;
+
+            case R.id.task_btn3: {
             }
             break;
         }
