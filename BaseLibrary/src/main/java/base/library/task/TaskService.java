@@ -33,7 +33,6 @@ public class TaskService {
     }
 
     /**
-     *
      * @param cls 任务类
      * @param obj 初始化参数
      * @param <D> 任务对象
@@ -76,7 +75,7 @@ public class TaskService {
     }
 
     private String getKey(Class cls, Object... obj) {
-        if (obj == null) {
+        if (obj == null || obj.length == 0) {
             return cls.getName();
         }
         String name = cls.getName();

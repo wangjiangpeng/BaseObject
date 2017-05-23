@@ -36,7 +36,8 @@ public class TaskActivity extends BaseActivity implements View.OnClickListener, 
         switch (v.getId()) {
             case R.id.task_btn1: {
                 TestTask task = TaskService.getInstance().getTask(TestTask.class);
-                task.reExecute(this);
+                task.setTaskCallback(this);
+                task.reExecute();
             }
             break;
 

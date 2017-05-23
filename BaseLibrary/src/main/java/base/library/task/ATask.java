@@ -51,7 +51,7 @@ public abstract class ATask<Progress> {
     private WorkerRunnable<Object> mWorker;
     private FutureTask<Object> mFuture;
 
-    private volatile Status mStatus = Status.PENDING;
+    private volatile Status mStatus;
 
     private final AtomicBoolean mCancelled;
     private final AtomicBoolean mTaskInvoked;
@@ -122,9 +122,11 @@ public abstract class ATask<Progress> {
                 mSerialExecutor.execute(mFuture);
             }
         } else {
-            TaskCallback callback = weakCallback.get();
-            if (callback != null) {
-                callback.onFinished(this, result);
+            if (isFinished()) {
+                TaskCallback callback = weakCallback.get();
+                if (callback != null) {
+                    callback.onFinished(this, result);
+                }
             }
         }
     }
@@ -168,9 +170,11 @@ public abstract class ATask<Progress> {
         if (execute) {
             mSerialExecutor.execute(mFuture);
         } else {
-            TaskCallback callback = weakCallback.get();
-            if (callback != null) {
-                callback.onFinished(this, result);
+            if (isFinished()) {
+                TaskCallback callback = weakCallback.get();
+                if (callback != null) {
+                    callback.onFinished(this, result);
+                }
             }
         }
     }
@@ -220,6 +224,7 @@ public abstract class ATask<Progress> {
                 }
             };
             mWorker.mParams = objs;
+            mStatus = Status.RUNNING;
 
             onPreExecute();
 
