@@ -25,7 +25,7 @@ public class BaseApplication extends Application {
         application = this;
 
         ATask task = TaskService.getInstance().getTask(EnvInitTask.class);
-        task.executeSerial(null);
+        task.executeSerial();
     }
 
     /**

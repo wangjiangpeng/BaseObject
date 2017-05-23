@@ -6,7 +6,7 @@ package base.library.task;
  * Created by wangjiangpeng01 on 2017/4/18.
  */
 
-public interface TaskCallbacks {
+public interface TaskCallback {
     /**
      * 任务执行完毕
      *

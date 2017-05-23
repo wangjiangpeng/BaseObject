@@ -8,7 +8,7 @@ import com.app.demo.task.TestTask;
 
 import base.library.BaseActivity;
 import base.library.task.ATask;
-import base.library.task.TaskCallbacks;
+import base.library.task.TaskCallback;
 import base.library.task.TaskService;
 
 /**
@@ -16,7 +16,7 @@ import base.library.task.TaskService;
  * <p>
  * Created by wangjiangpeng01 on 2016/12/21.
  */
-public class TaskActivity extends BaseActivity implements View.OnClickListener, TaskCallbacks {
+public class TaskActivity extends BaseActivity implements View.OnClickListener, TaskCallback {
 
     private static final String TAG = "TaskActivity";
 

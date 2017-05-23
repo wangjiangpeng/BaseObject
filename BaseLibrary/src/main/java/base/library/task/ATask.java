@@ -59,7 +59,12 @@ public abstract class ATask<Progress> {
     /**
      * 弱引用，防止对象无法释放
      */
-    private WeakReference<TaskCallbacks> weakReceiver;
+    private WeakReference<TaskCallback> weakCallback;
+
+    /**
+     * 弱引用，防止对象无法释放
+     */
+    private WeakReference<TaskProgress> weakProgress;
 
     /**
      * 执行结果
@@ -89,23 +94,21 @@ public abstract class ATask<Progress> {
     /**
      * 执行任务
      *
-     * @param callbacks 回调
-     * @param objs      执行参数
+     * @param objs 执行参数
      */
-    public synchronized void execute(TaskCallbacks callbacks, Object... objs) {
-        execute(sThreadPool, callbacks, objs);
+    public synchronized void execute(Object... objs) {
+        execute(sThreadPool, objs);
     }
 
     /**
      * 执行任务
      * 如果环境初始化任务没有完成，那么其他任务都要依赖它执行完了在执行
      *
-     * @param executor  任务池
-     * @param callbacks 回调
-     * @param objs      执行参数
+     * @param executor 任务池
+     * @param objs     执行参数
      */
-    public synchronized void execute(Executor executor, TaskCallbacks callbacks, Object... objs) {
-        boolean execute = preExecute(callbacks, objs);
+    public synchronized void execute(Executor executor, Object... objs) {
+        boolean execute = preExecute(objs);
         if (execute) {
             /* 保证环境初始化任务优先完成 */
             ATask task = TaskService.getInstance().getTask(EnvInitTask.class);
@@ -114,13 +117,14 @@ public abstract class ATask<Progress> {
 
             } else {
                 if (!task.isRunning()) {
-                    task.executeSerial(null);
+                    task.executeSerial();
                 }
                 mSerialExecutor.execute(mFuture);
             }
         } else {
-            if (callbacks != null) {
-                callbacks.onFinished(this, result);
+            TaskCallback callback = weakCallback.get();
+            if (callback != null) {
+                callback.onFinished(this, result);
             }
         }
     }
@@ -128,13 +132,12 @@ public abstract class ATask<Progress> {
     /**
      * 重新执行任务
      *
-     * @param callbacks 回调
-     * @param objs      执行参数
+     * @param objs 执行参数
      * @return
      */
-    public synchronized boolean reExecute(TaskCallbacks callbacks, Object... objs) {
+    public synchronized boolean reExecute(Object... objs) {
         if (reset()) {
-            execute(callbacks, objs);
+            execute(objs);
             return true;
         }
         return false;
@@ -143,14 +146,13 @@ public abstract class ATask<Progress> {
     /**
      * 重新执行任务
      *
-     * @param executor  任务池
-     * @param callbacks 回调
-     * @param objs      执行参数
+     * @param executor 任务池
+     * @param objs     执行参数
      * @return
      */
-    public synchronized boolean reExecute(Executor executor, TaskCallbacks callbacks, Object... objs) {
+    public synchronized boolean reExecute(Executor executor, Object... objs) {
         if (reset()) {
-            execute(executor, callbacks, objs);
+            execute(executor, objs);
             return true;
         }
         return false;
@@ -161,13 +163,14 @@ public abstract class ATask<Progress> {
      *
      * @param objs 执行参数
      */
-    public synchronized void executeSerial(TaskCallbacks callbacks, Object... objs) {
-        boolean execute = preExecute(callbacks, objs);
+    public synchronized void executeSerial(Object... objs) {
+        boolean execute = preExecute(objs);
         if (execute) {
             mSerialExecutor.execute(mFuture);
         } else {
-            if (callbacks != null) {
-                callbacks.onFinished(this, result);
+            TaskCallback callback = weakCallback.get();
+            if (callback != null) {
+                callback.onFinished(this, result);
             }
         }
     }
@@ -175,19 +178,18 @@ public abstract class ATask<Progress> {
     /**
      * 重新顺序执行任务
      *
-     * @param callbacks 回调
-     * @param objs      执行参数
+     * @param objs 执行参数
      * @return
      */
-    public synchronized boolean reExecuteSerial(TaskCallbacks callbacks, Object... objs) {
+    public synchronized boolean reExecuteSerial(Object... objs) {
         if (reset()) {
-            executeSerial(callbacks, objs);
+            executeSerial(objs);
             return true;
         }
         return false;
     }
 
-    private boolean preExecute(TaskCallbacks callbacks, Object... objs) {
+    private boolean preExecute(Object... objs) {
         if (mStatus != Status.PENDING) {
             return false;
         } else {
@@ -218,12 +220,29 @@ public abstract class ATask<Progress> {
                 }
             };
             mWorker.mParams = objs;
-            weakReceiver = new WeakReference(callbacks);
 
             onPreExecute();
 
             return true;
         }
+    }
+
+    /**
+     * 设置回调
+     *
+     * @param callback
+     */
+    public void setTaskCallback(TaskCallback callback) {
+        weakCallback = new WeakReference<TaskCallback>(callback);
+    }
+
+    /**
+     * 设置进度更新
+     *
+     * @param progress
+     */
+    public void setTaskProgress(TaskProgress progress) {
+        weakProgress = new WeakReference<TaskProgress>(progress);
     }
 
     private void postResultIfNotInvoked(Object result) {
@@ -252,7 +271,7 @@ public abstract class ATask<Progress> {
         mStatus = Status.PENDING;
         mCancelled.set(false);
         mTaskInvoked.set(false);
-        weakReceiver = null;
+        weakCallback = null;
         result = null;
         mWorker = null;
         mFuture = null;
@@ -317,18 +336,27 @@ public abstract class ATask<Progress> {
         } else {
             onPostExecute(result);
 
-            TaskCallbacks callbacks = weakReceiver.get();
-            if (callbacks != null) {
-                callbacks.onFinished(this, result);
+            TaskCallback callback = weakCallback.get();
+            if (callback != null) {
+                callback.onFinished(this, result);
             }
         }
         mStatus = Status.FINISHED;
     }
 
-    protected final void publishProgress(Progress... values) {
+    protected final void publishProgress(Progress values) {
         if (!isCancelled()) {
-            AsyncTaskResult result = new AsyncTaskResult<Progress>(this, values);
+            AsyncTaskResult<Progress> result = new AsyncTaskResult<Progress>(this, values);
             getHandler().obtainMessage(MESSAGE_POST_PROGRESS, result).sendToTarget();
+        }
+    }
+
+    protected void progressUpdate(Progress values) {
+        if (!isCancelled()) {
+            TaskProgress callback = weakProgress.get();
+            if (callback != null) {
+                callback.onProgressUpdate(this, values);
+            }
         }
     }
 
@@ -351,9 +379,6 @@ public abstract class ATask<Progress> {
     protected void onCancelled(Object result) {
     }
 
-    protected void onProgressUpdate(Progress... values) {
-    }
-
     protected abstract Object doInBackground(Object... objs);
 
     private static class InternalHandler extends Handler {
@@ -367,10 +392,10 @@ public abstract class ATask<Progress> {
             AsyncTaskResult<?> result = (AsyncTaskResult<?>) msg.obj;
             switch (msg.what) {
                 case MESSAGE_POST_RESULT:
-                    result.mTask.finish(result.mData[0]);
+                    result.mTask.finish(result.mData);
                     break;
                 case MESSAGE_POST_PROGRESS:
-                    result.mTask.onProgressUpdate(result.mData);
+                    result.mTask.progressUpdate(result.mData);
                     break;
             }
         }
@@ -378,9 +403,9 @@ public abstract class ATask<Progress> {
 
     private static class AsyncTaskResult<Data> {
         final ATask mTask;
-        final Data[] mData;
+        final Data mData;
 
-        AsyncTaskResult(ATask task, Data... data) {
+        AsyncTaskResult(ATask task, Data data) {
             mTask = task;
             mData = data;
         }

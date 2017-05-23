@@ -10,12 +10,14 @@ import base.library.module.ModuleManager;
  * Created by wangjiangpeng01 on 2017/3/1.
  */
 
-public class EnvInitTask extends ATask {
+public class EnvInitTask extends ATask<String> {
 
     @Override
     protected Object doInBackground(Object... objs) {
+        publishProgress("init module manager");
         ModuleManager.getInstance().initLoad();
 
+        publishProgress("init environment");
         BaseApplication application = BaseApplication.getInstance();
         application.envInit();
 
@@ -23,8 +25,9 @@ public class EnvInitTask extends ATask {
     }
 
     @Override
-    public void execute(TaskCallbacks callbacks, Object... objs) {
+    public void execute(Object... objs) {
         throw new RuntimeException("can not support");
     }
+
 
 }
