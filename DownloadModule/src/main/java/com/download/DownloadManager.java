@@ -1,7 +1,22 @@
 package com.download;
 
+import android.content.ContentResolver;
+import android.content.ContentUris;
+import android.content.ContentValues;
+import android.database.ContentObserver;
+import android.database.Cursor;
+import android.net.Uri;
+import android.os.Handler;
+import android.util.Log;
+
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import base.library.BaseApplication;
+import base.library.net.RequestParam;
 
 /**
  * 下载管理
@@ -10,67 +25,6 @@ import java.util.ArrayList;
  */
 
 public class DownloadManager {
-
-    /**
-     * 等待
-     */
-    public final static int STATUS_PENDING = 1 << 0;
-    /**
-     * 正在执行
-     */
-    public final static int STATUS_RUNNING = 1 << 1;
-    /**
-     * 暂停
-     */
-    public final static int STATUS_PAUSED = 1 << 2;
-    /**
-     * 成功
-     */
-    public final static int STATUS_SUCCESSFUL = 1 << 3;
-    /**
-     * 失败
-     */
-    public final static int STATUS_FAILED = 1 << 4;
-    /**
-     * 错误
-     */
-    public static final int STATE_ERROR = 5;
-    /**
-     * 未知错误
-     */
-    public final static int ERROR_UNKNOWN = 1000;
-    /**
-     * 文件错误，存储出现问题的时候
-     */
-    public final static int ERROR_FILE_ERROR = 1001;
-    /**
-     * 当接收到HTTP CODE时，下载管理器无法处理
-     */
-    public final static int ERROR_UNHANDLED_HTTP_CODE = 1002;
-    /**
-     * 当接收或处理数据的错误发生在HTTP级别时
-     */
-    public final static int ERROR_HTTP_DATA_ERROR = 1004;
-    /**
-     * 当有太多的改变
-     */
-    public final static int ERROR_TOO_MANY_REDIRECTS = 1005;
-    /**
-     * 当存储空间不足时。通常情况下，这是因为SD卡已满。
-     */
-    public final static int ERROR_INSUFFICIENT_SPACE = 1006;
-    /**
-     * 当没有发现外部存储设备时。通常情况下，这是因为SD卡没有安装。
-     */
-    public final static int ERROR_DEVICE_NOT_FOUND = 1007;
-    /**
-     * 当一些可能出现暂时错误，但我们不能恢复下载。
-     */
-    public final static int ERROR_CANNOT_RESUME = 1008;
-    /**
-     * 当请求的目标文件已经存在（下载管理器不会覆盖现有文件）。
-     */
-    public final static int ERROR_FILE_ALREADY_EXISTS = 1009;
 
     private final ArrayList<WeakReference<DownloadListener>> mListeners = new ArrayList<>();
 
@@ -82,18 +36,27 @@ public class DownloadManager {
         }
     };
 
-    private final DownloadProvider mProvider;
+    private final ContentResolver mResolver;
+    private ContentObserver mObserver;
+
 
     public DownloadManager() {
-        mProvider = new DownloadProvider();
+        mResolver = BaseApplication.getInstance().getContentResolver();
+        mObserver = new DownloadObserver(null);
+        mResolver.registerContentObserver(Downloads.CONTENT_URI, true, mObserver);
     }
 
-    public synchronized long enqueue(DownloadParam param) {
-        if (param == null) {
-            throw new NullPointerException();
-        }
-
-        return mProvider.insert(param);
+    /**
+     * 把下载任务放入队列
+     *
+     * @param request 不能为空
+     * @return
+     */
+    public long enqueue(Request request) {
+        ContentValues values = request.toContentValues();
+        Uri downloadUri = mResolver.insert(Downloads.CONTENT_URI, values);
+        long id = Long.parseLong(downloadUri.getLastPathSegment());
+        return id;
     }
 
     /**
@@ -102,25 +65,217 @@ public class DownloadManager {
      * @param id
      * @return
      */
-    public synchronized boolean deleted(long id) {
-        return mProvider.deleted(id) > 0;
+    public long deleted(long id) {
+        return mResolver.delete(ContentUris.withAppendedId(Downloads.CONTENT_URI, id), null, null);
     }
 
-    public synchronized boolean stop(long id) {
-        return false;
+    /**
+     * 暂停
+     *
+     * @param id
+     * @return
+     */
+    public int pause(long id) {
+        ContentValues values = new ContentValues();
+        values.put(Downloads.Info.CONTROL, Downloads.CONTROL_PAUSED);
+        return mResolver.update(ContentUris.withAppendedId(Downloads.CONTENT_URI, id), values, null, null);
     }
 
+    /**
+     * 查询所有的下载信息
+     *
+     * @return
+     */
+    public List<DownloadInfo> query() {
+        List<DownloadInfo> list = new ArrayList<>();
+        Cursor cursor = mResolver.query(Downloads.CONTENT_URI, null, null, null, null);
+        while (cursor.moveToNext()) {
+            DownloadInfo info = new DownloadInfo();
+            info.setId(cursor.getLong(cursor.getColumnIndexOrThrow(Downloads.Info.ID)));
+            info.setFileName(cursor.getString(cursor.getColumnIndexOrThrow(Downloads.Info.FILE_NAME)));
+            info.setTotalBytes(cursor.getLong(cursor.getColumnIndexOrThrow(Downloads.Info.TOTAL_BYTES)));
+            info.setCurrentBytes(cursor.getLong(cursor.getColumnIndexOrThrow(Downloads.Info.CURRENT_BYTES)));
+            info.setStatus(cursor.getInt(cursor.getColumnIndexOrThrow(Downloads.Info.STATUS)));
+            info.setDeleted(cursor.getInt(cursor.getColumnIndexOrThrow(Downloads.Info.IS_DELETED)) != 0);
+            info.setAllowedNetworkTypes(cursor.getInt(cursor.getColumnIndexOrThrow(Downloads.Info
+                    .ALLOWED_NETWORK_TYPES)));
+            info.setVisibility(cursor.getInt(cursor.getColumnIndexOrThrow(Downloads.Info.VISIBILITY)) != 0);
+            info.setError(cursor.getInt(cursor.getColumnIndexOrThrow(Downloads.Info.ERROR)));
+            info.setFailedConnections(cursor.getInt(cursor.getColumnIndexOrThrow(Downloads.Info.FAILED_CONNECTIONS)));
+            info.setControl(cursor.getInt(cursor.getColumnIndexOrThrow(Downloads.Info.CONTROL)));
+            list.add(info);
+        }
+        cursor.close();
+
+        return list;
+    }
 
     /**
      * 通知当前内容变更
      */
-    private void notifyContentChange() {
+    protected void notifyContentChange(long id, long total, long downloadLength) {
+        int length = mListeners.size();
+        for (int index = length - 1; index >= 0; index++) {
+            DownloadListener listener = mListeners.get(index).get();
+            if (listener != null) {
+                listener.onDownloaded(id, total, downloadLength);
 
+            } else {
+                mListeners.remove(index);
+            }
+        }
     }
 
-    public synchronized void addDownloadListener(DownloadListener listener) {
+    /**
+     * 添加监听
+     *
+     * @param listener
+     */
+    public void addDownloadListener(DownloadListener listener) {
         WeakReference<DownloadListener> reference = new WeakReference<DownloadListener>(listener);
         mListeners.add(reference);
     }
+
+    /**
+     * 删除监听
+     *
+     * @param listener
+     */
+    public void removeDownloadListener(DownloadListener listener) {
+        mListeners.remove(listener);
+    }
+
+    /**
+     * 下载请求参数
+     * <p>
+     * Created by wangjiangpeng01 on 2017/4/5.
+     */
+
+    public static class Request extends RequestParam {
+
+        private long id;
+
+        /**
+         * 本地下载路径
+         */
+        private String fileName;
+
+        /**
+         * 允许下载的网络类型，默认所有网络都可下载
+         */
+        private int allowedNetworkTypes = Downloads.NETWORK_ALL;
+
+        /**
+         * 可见
+         */
+        private boolean visibility;
+
+        public long getId() {
+            return id;
+        }
+
+        public void setId(long id) {
+            this.id = id;
+        }
+
+        public String getFileName() {
+            return fileName;
+        }
+
+        public void setFileName(String fileName) {
+            this.fileName = fileName;
+        }
+
+        public int getAllowedNetworkTypes() {
+            return allowedNetworkTypes;
+        }
+
+        public void setAllowedNetworkTypes(int allowedNetworkTypes) {
+            this.allowedNetworkTypes = allowedNetworkTypes;
+        }
+
+        public boolean isVisibility() {
+            return visibility;
+        }
+
+        public void setVisibility(boolean visibility) {
+            this.visibility = visibility;
+        }
+
+        ContentValues toContentValues() {
+            ContentValues values = new ContentValues();
+            values.put(Downloads.Request.URL, getUrl());
+            values.put(Downloads.Request.HEADERS, getHeaders().toString());
+            values.put(Downloads.Request.POSTS, getPosts().toString());
+            values.put(Downloads.Request.IS_SSL_MUTUAL, isSSLMutual());
+            values.put(Downloads.Request.KEY_STORE_PASS, getKeyStorePass());
+            values.put(Downloads.Request.KEY_STORE_ID, getKeyStoreId());
+            values.put(Downloads.Request.TRUST_STORE_PASS, getTrustStorePass());
+            values.put(Downloads.Request.TRUST_STORE_ID, getTrustStoreId());
+
+            values.put(Downloads.Info.FILE_NAME, getFileName());
+            values.put(Downloads.Info.TOTAL_BYTES, 0);
+            values.put(Downloads.Info.CURRENT_BYTES, 0);
+            values.put(Downloads.Info.STATUS, Downloads.STATUS_PENDING);
+            values.put(Downloads.Info.IS_DELETED, false);
+            values.put(Downloads.Info.ALLOWED_NETWORK_TYPES, getAllowedNetworkTypes());
+            values.put(Downloads.Info.VISIBILITY, isVisibility());
+
+            return values;
+        }
+
+        public void copyCursorData(Cursor cursor) {
+            setId(cursor.getLong(cursor.getColumnIndexOrThrow(Downloads.Request.ID)));
+            setUrl(cursor.getString(cursor.getColumnIndexOrThrow(Downloads.Request.URL)));
+            addHeader(stringToMap(cursor.getLong(cursor.getColumnIndexOrThrow(Downloads.Request.HEADERS))));
+            addPost(stringToMap(cursor.getString(cursor.getColumnIndexOrThrow(Downloads.Request.POSTS))));
+            setSSLMutual(cursor.getInt(cursor.getColumnIndexOrThrow(Downloads.Request.IS_SSL_MUTUAL)) != 0);
+            setKeyStoreId(cursor.getLong(cursor.getColumnIndexOrThrow(Downloads.Request.KEY_STORE_ID)));
+            setKeyStorePass(cursor.getString(cursor.getColumnIndexOrThrow(Downloads.Request.KEY_STORE_PASS)));
+            setTrustStoreId(cursor.getLong(cursor.getColumnIndexOrThrow(Downloads.Request.TRUST_STORE_ID)));
+            setTrustStorePass(cursor.getString(cursor.getColumnIndexOrThrow(Downloads.Request.TRUST_STORE_PASS)));
+        }
+
+        private Map<String, String> stringToMap(String str) {
+            HashMap<String, String> map = new HashMap<>();
+            if (!str.startsWith("{") || !str.endsWith("}")) {
+                return map;
+            }
+            try {
+                String sub = str.substring(1, str.length() - 2);
+                String[] entrys = sub.split(",");
+                for (String entry : entrys) {
+                    String[] value = entry.split("=");
+                    map.put(value[0], value[1]);
+                }
+            } catch (Throwable e) {
+                map.clear();
+            }
+            return map;
+        }
+
+    }
+
+    private static class DownloadObserver extends ContentObserver {
+
+        /**
+         * Creates a content observer.
+         *
+         * @param handler The handler to run {@link #onChange} on, or null if none.
+         */
+        public DownloadObserver(Handler handler) {
+            super(handler);
+        }
+
+        @Override
+        public void onChange(boolean selfChange, Uri uri) {
+            super.onChange(selfChange, uri);
+
+            Log.e("WJP", "onChangeuri" + selfChange);
+            Log.e("WJP", uri.getHost());
+        }
+
+    }
+
 
 }

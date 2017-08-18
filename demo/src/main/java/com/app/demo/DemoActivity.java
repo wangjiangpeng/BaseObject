@@ -19,6 +19,7 @@ public class DemoActivity extends BaseActivity implements View.OnClickListener {
 
         findViewById(R.id.demo_task).setOnClickListener(this);
         findViewById(R.id.demo_appmanager).setOnClickListener(this);
+        findViewById(R.id.demo_download).setOnClickListener(this);
     }
 
     @Override
@@ -30,6 +31,10 @@ public class DemoActivity extends BaseActivity implements View.OnClickListener {
 
             case R.id.demo_appmanager:
                 startActivity(new Intent(DemoActivity.this, AppManagerActivity.class));
+                break;
+
+            case R.id.demo_download:
+                startActivity(new Intent(DemoActivity.this, DownloadActivity.class));
                 break;
         }
     }

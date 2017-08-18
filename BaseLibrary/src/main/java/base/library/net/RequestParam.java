@@ -3,9 +3,6 @@ package base.library.net;
 import java.util.HashMap;
 import java.util.Map;
 
-import static android.R.attr.key;
-import static android.R.attr.value;
-
 /**
  * 网络请求参数
  * <p>
@@ -15,22 +12,18 @@ import static android.R.attr.value;
 public class RequestParam {
 
     /**
-     * 域名
+     * url
      */
-    private String domain;
+    private String url;
     /**
      * 头部
      */
     private HashMap<String, String> headers = new HashMap<>();
 
     /**
-     * 头部
+     * post
      */
     private HashMap<String, String> posts = new HashMap<>();
-    /**
-     * get数据
-     */
-    private String getData;
     /**
      * ssl是否双向验证
      */
@@ -60,12 +53,12 @@ public class RequestParam {
      */
     private long readTimeout;
 
-    public String getDomain() {
-        return domain;
+    public String getUrl() {
+        return url;
     }
 
-    public void setDomain(String domain) {
-        this.domain = domain;
+    public void setUrl(String url) {
+        this.url = url;
     }
 
     public void addHeader(String key, String value) {
@@ -74,10 +67,6 @@ public class RequestParam {
 
     public void addHeaders(Map<String, String> map) {
         headers.putAll(map);
-    }
-
-    public void removeHeader(String key) {
-        headers.remove(key);
     }
 
     public Map<String, String> getHeaders() {
@@ -92,24 +81,12 @@ public class RequestParam {
         posts.putAll(map);
     }
 
-    public void removePost(String key) {
-        posts.remove(key);
-    }
-
     public Map<String, String> getPosts() {
         return (Map<String, String>) posts.clone();
     }
 
-    public String getGetData() {
-        return getData;
-    }
-
-    public void setGetData(String getData) {
-        this.getData = getData;
-    }
-
     public boolean isHttps() {
-        if (domain != null && domain.startsWith("https")) {
+        if (url != null && url.startsWith("https")) {
             return true;
         } else {
             return false;
@@ -170,10 +147,6 @@ public class RequestParam {
 
     public void setReadTimeout(long readTimeout) {
         this.readTimeout = readTimeout;
-    }
-
-    public String getUrl() {
-        return getData == null ? domain : domain + getData;
     }
 
 }

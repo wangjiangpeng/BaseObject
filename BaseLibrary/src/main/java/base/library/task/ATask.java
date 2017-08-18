@@ -357,7 +357,7 @@ public abstract class ATask<Progress> {
     }
 
     protected void progressUpdate(Progress values) {
-        if (!isCancelled()) {
+        if (!isCancelled() && weakProgress != null) {
             TaskProgress callback = weakProgress.get();
             if (callback != null) {
                 callback.onProgressUpdate(this, values);

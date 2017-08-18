@@ -17,4 +17,10 @@
         android:layout_height="wrap_content"
         android:text="程序管理" />
 
+    <Button
+        android:id="@+id/demo_download"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="下载" />
+
 </LinearLayout>
