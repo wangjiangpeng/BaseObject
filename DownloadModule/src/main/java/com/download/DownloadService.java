@@ -33,6 +33,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import base.library.MLog;
 import base.library.task.ATask;
 
+import static android.text.format.DateUtils.MINUTE_IN_MILLIS;
+
 /**
  * Created by wangjiangpeng01 on 2017/5/11.
  */
@@ -106,6 +108,12 @@ public class DownloadService extends Service {
         }
     }
 
+    private void enqueueFinalUpdate() {
+        mUpdateHandler.removeMessages(MSG_FINAL_UPDATE);
+        mUpdateHandler.sendMessageDelayed(mUpdateHandler.obtainMessage(MSG_FINAL_UPDATE, mLastStartId, -1), 5 *
+                MINUTE_IN_MILLIS);
+    }
+
     @Override
     public IBinder onBind(Intent intent) {
         return null;
@@ -121,7 +129,6 @@ public class DownloadService extends Service {
 
             // 以数据库为准，下载状态都依赖于数据库。
             // 一旦操作完成就保存到服务器，总是得到最新的状态
-
             final boolean isActive;
             synchronized (mDownloads) {
                 isActive = updateLocked();
@@ -135,7 +142,6 @@ public class DownloadService extends Service {
         final long now = System.currentTimeMillis();
 
         boolean isActive = false;
-        long nextActionMillis = Long.MAX_VALUE;
 
         final Set<Long> staleIds = new HashSet<>(mDownloads.keySet());
 
@@ -157,17 +163,14 @@ public class DownloadService extends Service {
 
                 if (info.isDeleted()) {
                     // 如果要求删除下载，清理
-                    resolver.delete(Downloads.CONTENT_URI, Downloads.Info.ID + "=?", new String[]{String.valueOf(id)});
+                    resolver.delete(ContentUris.withAppendedId(Downloads.CONTENT_URI, id), null, null);
+                    deleteFileIfExists(info.getFileName());
 
                 } else {
                     // 开始下载任务是否准备好了
                     final boolean activeDownload = startDownloadIfReady(info);
 
-                    // 启动媒体扫描如果完成
-                    final boolean activeScan = info.startScanIfReady(mScanner);
-
                     isActive |= activeDownload;
-                    isActive |= activeScan;
                 }
             }
 
@@ -175,7 +178,7 @@ public class DownloadService extends Service {
             cursor.close();
         }
 
-        return false;
+        return isActive;
     }
 
     /**
@@ -209,7 +212,7 @@ public class DownloadService extends Service {
      * @param executor
      * @return
      */
-    public boolean startDownloadIfReady(DownloadInfo info) {
+    private boolean startDownloadIfReady(DownloadInfo info) {
         synchronized (this) {
             final boolean isReady = isReadyToDownload(info);
             ATask task = mTasks.get(info.getId());
@@ -232,12 +235,18 @@ public class DownloadService extends Service {
                     DownloadManager.Request request = new DownloadManager.Request();
                     request.copyCursorData(cursor);
 
-                    DownloadTask t = new DownloadTask(request, null);
+                    DownloadTask t = new DownloadTask(this, request, info);
                     t.execute(mPool);
                     mTasks.put(info.getId(), t);
 
-                } finally {
-                    cursor.close();
+                }catch (Exception e){
+                    e.printStackTrace();
+
+                }finally {
+                    if(cursor != null){
+                        cursor.close();
+                    }
+
                 }
             }
 
@@ -315,6 +324,15 @@ public class DownloadService extends Service {
         return false;
     }
 
+    private void deleteFileIfExists(String path) {
+        if (!TextUtils.isEmpty(path)) {
+            final File file = new File(path);
+            if (file.exists() && !file.delete()) {
+                MLog.w(TAG, "file: '" + path + "' couldn't be deleted");
+            }
+        }
+    }
+
     /**
      * 下载信息读取类
      */
@@ -340,7 +358,7 @@ public class DownloadService extends Service {
             info.setTotalBytes(getLong(Downloads.Info.TOTAL_BYTES));
             info.setCurrentBytes(getLong(Downloads.Info.CURRENT_BYTES));
             info.setStatus(getInt(Downloads.Info.STATUS));
-            info.setDeleted(getInt(Downloads.Info.IS_DELETED) != 0);
+            info.setDeleted(getInt(Downloads.Info.DELETED) != 0);
             info.setAllowedNetworkTypes(getInt(Downloads.Info.ALLOWED_NETWORK_TYPES));
             info.setVisibility(getInt(Downloads.Info.VISIBILITY) != 0);
             info.setError(getInt(Downloads.Info.ERROR));
@@ -363,27 +381,34 @@ public class DownloadService extends Service {
 
     }
 
+    /**
+     * 下载任务
+     */
     private static class DownloadTask extends ATask<Integer> {
 
-        private DownloadManager.Request mParam;
+        private Context mContext;
+        private DownloadManager.Request mRequest;
+        private DownloadInfo mListener;
 
-        private DownloadListener mListener;
-
-        public DownloadTask(DownloadManager.Request request, DownloadListener listener) {
-            mParam = request;
+        public DownloadTask(Context context, DownloadManager.Request request, DownloadInfo listener) {
+            this.mContext = context;
+            this.mRequest = request;
             mListener = listener;
         }
 
         @Override
         protected Object doInBackground(Object... objs) {
-            DownloadHttpClient httpClient = new DownloadHttpClient();
-            httpClient.download(mParam, mListener);
+            DownloadHttpClient httpClient = new DownloadHttpClient(mContext, mRequest, mListener);
+            httpClient.download();
 
             return null;
         }
 
     }
 
+    /**
+     * 下载池
+     */
     private static class DownloadPool implements Executor {
 
         private static final int CPU_COUNT = Runtime.getRuntime().availableProcessors();

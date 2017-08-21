@@ -13,7 +13,6 @@ import android.database.sqlite.SQLiteOpenHelper;
 import android.net.Uri;
 import android.os.ParcelFileDescriptor;
 import android.text.TextUtils;
-import android.util.Log;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -22,7 +21,6 @@ import java.util.List;
 
 import base.library.MLog;
 
-import static com.download.Downloads.REQUEST_HEADERS_URI;
 
 /**
  * 下载提供，处理数据库和中间数据之间的关系
@@ -46,10 +44,12 @@ public class DownloadProvider extends ContentProvider {
     private SQLiteOpenHelper mOpenHelper;
 
     private static final UriMatcher sURIMatcher = new UriMatcher(UriMatcher.NO_MATCH);
+
     static {
         sURIMatcher.addURI("com.download.provider", "downloads", Downloads.DOWNLOADS);
+        sURIMatcher.addURI("com.download.provider", "downloads/#", Downloads.DOWNLOADS_ID);
         sURIMatcher.addURI("com.download.provider", "request", Downloads.REQUEST_HEADERS_URI);
-
+        sURIMatcher.addURI("com.download.provider", "request/#", Downloads.REQUEST_HEADERS_URI_ID);
     }
 
     @Override
@@ -81,7 +81,7 @@ public class DownloadProvider extends ContentProvider {
         copyLong(Downloads.Info.TOTAL_BYTES, values, filteredValues);
         copyLong(Downloads.Info.CURRENT_BYTES, values, filteredValues);
         copyInteger(Downloads.Info.STATUS, values, filteredValues);
-        copyBoolean(Downloads.Info.IS_DELETED, values, filteredValues);
+        copyBoolean(Downloads.Info.DELETED, values, filteredValues);
         copyInteger(Downloads.Info.ALLOWED_NETWORK_TYPES, values, filteredValues);
         copyBoolean(Downloads.Info.VISIBILITY, values, filteredValues);
         copyInteger(Downloads.Info.ERROR, values, filteredValues);
@@ -100,7 +100,7 @@ public class DownloadProvider extends ContentProvider {
         copyString(Downloads.Request.URL, values, filteredValues);
         copyString(Downloads.Request.HEADERS, values, filteredValues);
         copyString(Downloads.Request.POSTS, values, filteredValues);
-        copyBoolean(Downloads.Request.IS_SSL_MUTUAL, values, filteredValues);
+        copyBoolean(Downloads.Request.SSL_MUTUAL, values, filteredValues);
         copyLong(Downloads.Request.KEY_STORE_ID, values, filteredValues);
         copyLong(Downloads.Request.TRUST_STORE_ID, values, filteredValues);
         copyString(Downloads.Request.KEY_STORE_PASS, values, filteredValues);
@@ -121,10 +121,13 @@ public class DownloadProvider extends ContentProvider {
         getContext().getContentResolver().notifyChange(uri, null);
     }
 
-    private SqlSelection getWhereClause(final Uri uri, final String where, final String[] whereArgs) {
+    private SqlSelection getWhereClause(final Uri uri, final String where, final String[] whereArgs, int uriMatch) {
         SqlSelection selection = new SqlSelection();
         selection.appendClause(where, whereArgs);
-        selection.appendClause(Downloads.Info.ID + " = ?", getDownloadIdFromUri(uri));
+        if (uriMatch == Downloads.DOWNLOADS_ID || uriMatch == Downloads.REQUEST_HEADERS_URI_ID) {
+            selection.appendClause(Downloads.Info.ID + " = ?", getDownloadIdFromUri(uri));
+        }
+
         return selection;
     }
 
@@ -135,44 +138,48 @@ public class DownloadProvider extends ContentProvider {
     @Override
     public int delete(Uri uri, String where, String[] whereArgs) {
         SQLiteDatabase db = mOpenHelper.getWritableDatabase();
-
+        int count = 0;
         int match = sURIMatcher.match(uri);
-        if (match != Downloads.DOWNLOADS) {
-            throw new IllegalArgumentException("Unknown/Invalid URI " + uri);
-        }
+        switch (match) {
+            case Downloads.DOWNLOADS:
+            case Downloads.DOWNLOADS_ID:
+            case Downloads.REQUEST_HEADERS_URI:
+            case Downloads.REQUEST_HEADERS_URI_ID:
+                SqlSelection selection = getWhereClause(uri, where, whereArgs, match);
+                deleteRequestHeaders(db, selection.getSelection(), selection.getParameters());
 
-        int count;
-        // 删除数据库请求记录
-        SqlSelection selection = getWhereClause(uri, where, whereArgs);
-        deleteRequestHeaders(db, selection.getSelection(), selection.getParameters());
-
-        // 删除文件
-        String[] columns = new String[]{Downloads.Info.ID, Downloads.Info.FILE_NAME};
-        final Cursor cursor = db.query(Downloads.Info.TABLE_NAME, columns, selection.getSelection(), selection
-                .getParameters(), null, null, null);
-        try {
-            while (cursor.moveToNext()) {
-                final String path = cursor.getString(1);
-                if (!TextUtils.isEmpty(path)) {
-                    final File file = new File(path);
-                    if (file.exists()) {
-                        file.delete();
+                // 删除文件
+                String[] columns = new String[]{Downloads.Info.ID, Downloads.Info.FILE_NAME};
+                final Cursor cursor = db.query(Downloads.Info.TABLE_NAME, columns, selection.getSelection(),
+                        selection.getParameters(), null, null, null);
+                try {
+                    while (cursor.moveToNext()) {
+                        final String path = cursor.getString(1);
+                        if (!TextUtils.isEmpty(path)) {
+                            final File file = new File(path);
+                            if (file.exists()) {
+                                file.delete();
+                            }
+                        }
                     }
-                }
-            }
-        } finally {
-            try {
-                if (cursor != null) {
-                    cursor.close();
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+                } finally {
+                    try {
+                        if (cursor != null) {
+                            cursor.close();
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
 
+                }
+
+                count = db.delete(Downloads.Info.TABLE_NAME, selection.getSelection(), selection.getParameters());
+                break;
+
+            default:
+                throw new UnsupportedOperationException("Cannot delete URI: " + uri);
         }
 
-        // 删除数据库记录
-        count = db.delete(Downloads.Info.TABLE_NAME, selection.getSelection(), selection.getParameters());
         notifyContentChanged(uri);
 
         return count;
@@ -193,27 +200,30 @@ public class DownloadProvider extends ContentProvider {
     }
 
     @Override
-    public int update(Uri uri, ContentValues values, String where, String[] whereArgs) {
+    public int update(final Uri uri, ContentValues values, String where, String[] whereArgs) {
         SQLiteDatabase db = mOpenHelper.getWritableDatabase();
-
-        int match = sURIMatcher.match(uri);
-        if (match != Downloads.DOWNLOADS) {
-            throw new IllegalArgumentException("Unknown/Invalid URI " + uri);
-        }
 
         int count = 0;
         boolean startService = false;
-
-        if (values.containsKey(Downloads.Info.IS_DELETED)) {
-            if (values.getAsInteger(Downloads.Info.IS_DELETED) == 1) {
+        if (values.containsKey(Downloads.Info.DELETED)) {
+            if (values.getAsInteger(Downloads.Info.DELETED) == 1) {
                 startService = true;
             }
         }
 
-        SqlSelection selection = getWhereClause(uri, where, whereArgs);
-        if (values.size() > 0) {
-            count = db.update(Downloads.Info.TABLE_NAME, values, selection.getSelection(), selection
-                    .getParameters());
+        int match = sURIMatcher.match(uri);
+        switch (match) {
+            case Downloads.DOWNLOADS:
+            case Downloads.DOWNLOADS_ID:
+                SqlSelection selection = getWhereClause(uri, where, whereArgs, match);
+                if (values.size() > 0) {
+                    count = db.update(Downloads.Info.TABLE_NAME, values, selection.getSelection(), selection
+                            .getParameters());
+                }
+                break;
+
+            default:
+                throw new UnsupportedOperationException("Cannot update URI: " + uri);
         }
 
         notifyContentChanged(uri);
@@ -226,22 +236,46 @@ public class DownloadProvider extends ContentProvider {
     }
 
     @Override
-    public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs, String sort) {
+    public Cursor query(Uri uri, String[] projection, String where, String[] whereArgs, String sort) {
         SQLiteDatabase db = mOpenHelper.getReadableDatabase();
 
         Cursor cursor = null;
         int match = sURIMatcher.match(uri);
-        if (match == Downloads.DOWNLOADS) {
-            SqlSelection fullSelection = new SqlSelection();
-            fullSelection.appendClause(selection, selectionArgs);
-            cursor = db.query(Downloads.Info.TABLE_NAME, projection, fullSelection.getSelection(),
-                    fullSelection.getParameters(), null, null, sort);
+        if (match == -1) {
+            throw new IllegalArgumentException("Unknown URI: " + uri);
+        }
 
-        } else {
-            SqlSelection fullSelection = new SqlSelection();
-            fullSelection.appendClause(selection, selectionArgs);
-            cursor = db.query(Downloads.Info.TABLE_NAME, projection, fullSelection.getSelection(),
-                    fullSelection.getParameters(), null, null, sort);
+        if (match == Downloads.REQUEST_HEADERS_URI) {
+
+        }
+
+        if (match == Downloads.REQUEST_HEADERS_URI_ID) {
+
+        }
+        switch (match) {
+            case Downloads.REQUEST_HEADERS_URI:
+                if (projection != null || where != null || sort != null) {
+                    throw new UnsupportedOperationException("Request header queries do not support " + "projections, " +
+                            "selections or sorting");
+                }
+                return queryRequestHeaders(db, uri);
+
+            case Downloads.REQUEST_HEADERS_URI_ID: {
+                SqlSelection fullSelection = getWhereClause(uri, where, whereArgs, match);
+                cursor = db.query(Downloads.Request.TABLE_NAME, projection, fullSelection.getSelection(),
+                        fullSelection.getParameters(), null, null, sort);
+
+            }
+            break;
+
+            case Downloads.DOWNLOADS:
+            case Downloads.DOWNLOADS_ID: {
+                SqlSelection fullSelection = getWhereClause(uri, where, whereArgs, match);
+                cursor = db.query(Downloads.Info.TABLE_NAME, projection, fullSelection.getSelection(),
+                        fullSelection.getParameters(), null, null, sort);
+
+            }
+            break;
         }
 
         return cursor;
@@ -281,6 +315,14 @@ public class DownloadProvider extends ContentProvider {
     }
 
     /**
+     * Handle a query for the custom request headers registered for a download.
+     */
+    private Cursor queryRequestHeaders(SQLiteDatabase db, Uri uri) {
+        String where = Downloads.Request.DOWNLOAD_ID + "=" + getDownloadIdFromUri(uri);
+        return db.query(Downloads.Request.TABLE_NAME, null, where, null, null, null, null);
+    }
+
+    /**
      * 数据库
      * <p>
      * Created by wangjiangpeng01 on 2017/4/21.
@@ -308,7 +350,7 @@ public class DownloadProvider extends ContentProvider {
                         Downloads.Request.URL + " text, " +
                         Downloads.Request.HEADERS + " text, " +
                         Downloads.Request.POSTS + " text, " +
-                        Downloads.Request.IS_SSL_MUTUAL + " boolean, " +
+                        Downloads.Request.SSL_MUTUAL + " boolean, " +
                         Downloads.Request.KEY_STORE_ID + " integer, " +
                         Downloads.Request.TRUST_STORE_ID + " integer, " +
                         Downloads.Request.KEY_STORE_PASS + " text, " +
@@ -328,7 +370,7 @@ public class DownloadProvider extends ContentProvider {
                         Downloads.Info.TOTAL_BYTES + " integer, " +
                         Downloads.Info.CURRENT_BYTES + " integer, " +
                         Downloads.Info.STATUS + " integer, " +
-                        Downloads.Info.IS_DELETED + " boolean, " +
+                        Downloads.Info.DELETED + " boolean, " +
                         Downloads.Info.ALLOWED_NETWORK_TYPES + " integer, " +
                         Downloads.Info.VISIBILITY + " boolean, " +
                         Downloads.Info.ERROR + " integer, " +

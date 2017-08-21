@@ -66,7 +66,10 @@ public class DownloadManager {
      * @return
      */
     public long deleted(long id) {
-        return mResolver.delete(ContentUris.withAppendedId(Downloads.CONTENT_URI, id), null, null);
+        ContentValues values = new ContentValues();
+        values.put(Downloads.Info.DELETED, 1);
+
+        return mResolver.update(ContentUris.withAppendedId(Downloads.CONTENT_URI, id), values, null, null);
     }
 
     /**
@@ -96,7 +99,7 @@ public class DownloadManager {
             info.setTotalBytes(cursor.getLong(cursor.getColumnIndexOrThrow(Downloads.Info.TOTAL_BYTES)));
             info.setCurrentBytes(cursor.getLong(cursor.getColumnIndexOrThrow(Downloads.Info.CURRENT_BYTES)));
             info.setStatus(cursor.getInt(cursor.getColumnIndexOrThrow(Downloads.Info.STATUS)));
-            info.setDeleted(cursor.getInt(cursor.getColumnIndexOrThrow(Downloads.Info.IS_DELETED)) != 0);
+            info.setDeleted(cursor.getInt(cursor.getColumnIndexOrThrow(Downloads.Info.DELETED)) != 0);
             info.setAllowedNetworkTypes(cursor.getInt(cursor.getColumnIndexOrThrow(Downloads.Info
                     .ALLOWED_NETWORK_TYPES)));
             info.setVisibility(cursor.getInt(cursor.getColumnIndexOrThrow(Downloads.Info.VISIBILITY)) != 0);
@@ -207,7 +210,7 @@ public class DownloadManager {
             values.put(Downloads.Request.URL, getUrl());
             values.put(Downloads.Request.HEADERS, getHeaders().toString());
             values.put(Downloads.Request.POSTS, getPosts().toString());
-            values.put(Downloads.Request.IS_SSL_MUTUAL, isSSLMutual());
+            values.put(Downloads.Request.SSL_MUTUAL, isSSLMutual());
             values.put(Downloads.Request.KEY_STORE_PASS, getKeyStorePass());
             values.put(Downloads.Request.KEY_STORE_ID, getKeyStoreId());
             values.put(Downloads.Request.TRUST_STORE_PASS, getTrustStorePass());
@@ -217,7 +220,7 @@ public class DownloadManager {
             values.put(Downloads.Info.TOTAL_BYTES, 0);
             values.put(Downloads.Info.CURRENT_BYTES, 0);
             values.put(Downloads.Info.STATUS, Downloads.STATUS_PENDING);
-            values.put(Downloads.Info.IS_DELETED, false);
+            values.put(Downloads.Info.DELETED, false);
             values.put(Downloads.Info.ALLOWED_NETWORK_TYPES, getAllowedNetworkTypes());
             values.put(Downloads.Info.VISIBILITY, isVisibility());
 
@@ -227,12 +230,12 @@ public class DownloadManager {
         public void copyCursorData(Cursor cursor) {
             setId(cursor.getLong(cursor.getColumnIndexOrThrow(Downloads.Request.ID)));
             setUrl(cursor.getString(cursor.getColumnIndexOrThrow(Downloads.Request.URL)));
-            addHeader(stringToMap(cursor.getLong(cursor.getColumnIndexOrThrow(Downloads.Request.HEADERS))));
-            addPost(stringToMap(cursor.getString(cursor.getColumnIndexOrThrow(Downloads.Request.POSTS))));
-            setSSLMutual(cursor.getInt(cursor.getColumnIndexOrThrow(Downloads.Request.IS_SSL_MUTUAL)) != 0);
-            setKeyStoreId(cursor.getLong(cursor.getColumnIndexOrThrow(Downloads.Request.KEY_STORE_ID)));
+            addHeaders(stringToMap(cursor.getString(cursor.getColumnIndexOrThrow(Downloads.Request.HEADERS))));
+            addPosts(stringToMap(cursor.getString(cursor.getColumnIndexOrThrow(Downloads.Request.POSTS))));
+            setSSLMutual(cursor.getInt(cursor.getColumnIndexOrThrow(Downloads.Request.SSL_MUTUAL)) != 0);
+            setKeyStoreId(cursor.getInt(cursor.getColumnIndexOrThrow(Downloads.Request.KEY_STORE_ID)));
             setKeyStorePass(cursor.getString(cursor.getColumnIndexOrThrow(Downloads.Request.KEY_STORE_PASS)));
-            setTrustStoreId(cursor.getLong(cursor.getColumnIndexOrThrow(Downloads.Request.TRUST_STORE_ID)));
+            setTrustStoreId(cursor.getInt(cursor.getColumnIndexOrThrow(Downloads.Request.TRUST_STORE_ID)));
             setTrustStorePass(cursor.getString(cursor.getColumnIndexOrThrow(Downloads.Request.TRUST_STORE_PASS)));
         }
 

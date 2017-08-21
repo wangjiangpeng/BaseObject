@@ -171,9 +171,11 @@ public abstract class ATask<Progress> {
             mSerialExecutor.execute(mFuture);
         } else {
             if (isFinished()) {
-                TaskCallback callback = weakCallback.get();
-                if (callback != null) {
-                    callback.onFinished(this, result);
+                if(weakCallback != null){
+                    TaskCallback callback = weakCallback.get();
+                    if (callback != null) {
+                        callback.onFinished(this, result);
+                    }
                 }
             }
         }
@@ -340,11 +342,13 @@ public abstract class ATask<Progress> {
 
         } else {
             onPostExecute(result);
-
-            TaskCallback callback = weakCallback.get();
-            if (callback != null) {
-                callback.onFinished(this, result);
+            if(weakCallback != null){
+                TaskCallback callback = weakCallback.get();
+                if (callback != null) {
+                    callback.onFinished(this, result);
+                }
             }
+
         }
         mStatus = Status.FINISHED;
     }

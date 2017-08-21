@@ -39,7 +39,8 @@ public class DownloadActivity extends BaseActivity implements OnClickListener {
         switch (v.getId()) {
             case R.id.download_enqueue:
                 DownloadManager.Request request = new DownloadManager.Request();
-                request.setUrl("http://blog.csdn.net/lime110/article/details/50685095");
+                request.setUrl("http://gh-pages.clockworkmod.com/ROMManagerManifest/devices.js");
+                request.setFileName("/mnt/sdcard/demo.js");
                 id = manager.enqueue(request);
                 Log.e("WJP", "id" + id);
                 break;

@@ -16,7 +16,9 @@ public class Downloads {
     public static final Uri CONTENT_URI = Uri.parse("content://com.download.provider/downloads");
     public static final Uri CONTENT_URI_REQUEST = Uri.parse("content://com.download.provider/request");
     public static final int DOWNLOADS = 1;
-    public static final int REQUEST_HEADERS_URI = 2;
+    public static final int DOWNLOADS_ID = 2;
+    public static final int REQUEST_HEADERS_URI = 3;
+    public static final int REQUEST_HEADERS_URI_ID = 4;
 
 
     /**
@@ -57,17 +59,26 @@ public class Downloads {
      */
     public final static int STATUS_RUNNING = 1 << 1;
     /**
+     * app暂停
+     */
+    public static final int STATUS_PAUSED_BY_APP = 193;
+
+    /**
      * 暂停
      */
     public final static int STATUS_PAUSED = 1 << 2;
     /**
+     * 取消
+     */
+    public final static int STATUS_CANCLED = 1 << 3;
+    /**
      * 成功
      */
-    public final static int STATUS_SUCCESSFUL = 1 << 3;
+    public final static int STATUS_SUCCESS = 1 << 4;
     /**
      * 失败
      */
-    public final static int STATUS_FAILED = 1 << 4;
+    public final static int STATUS_FAILED = 1 << 5;
 
     /**
      * 此下载中遇到的一些网络错误，重试请求前等待。
@@ -91,6 +102,111 @@ public class Downloads {
      * 此下载无法完成，因为没有找到外部存储设备。通常，这是因为SD卡没有安装。
      */
     public static final int STATUS_DEVICE_NOT_FOUND_ERROR = 199;
+    /**
+     * This request couldn't be parsed. This is also used when processing
+     * requests with unknown/unsupported URI schemes.
+     */
+    public static final int STATUS_BAD_REQUEST = 400;
+
+    /**
+     * This download can't be performed because the content type cannot be
+     * handled.
+     */
+    public static final int STATUS_NOT_ACCEPTABLE = 406;
+    /**
+     * This download cannot be performed because the length cannot be
+     * determined accurately. This is the code for the HTTP error "Length
+     * Required", which is typically used when making requests that require
+     * a content length but don't have one, and it is also used in the
+     * client when a response is received whose length cannot be determined
+     * accurately (therefore making it impossible to know when a download
+     * completes).
+     */
+    public static final int STATUS_LENGTH_REQUIRED = 411;
+
+    /**
+     * This download was interrupted and cannot be resumed.
+     * This is the code for the HTTP error "Precondition Failed", and it is
+     * also used in situations where the client doesn't have an ETag at all.
+     */
+    public static final int STATUS_PRECONDITION_FAILED = 412;
+
+    /**
+     * The lowest-valued error status that is not an actual HTTP status code.
+     */
+    public static final int MIN_ARTIFICIAL_ERROR_STATUS = 488;
+
+    /**
+     * The requested destination file already exists.
+     */
+    public static final int STATUS_FILE_ALREADY_EXISTS_ERROR = 488;
+
+    /**
+     * Some possibly transient error occurred, but we can't resume the download.
+     */
+    public static final int STATUS_CANNOT_RESUME = 489;
+
+    /**
+     * This download was canceled
+     */
+    public static final int STATUS_CANCELED = 490;
+
+    /**
+     * This download has completed with an error.
+     * Warning: there will be other status values that indicate errors in
+     * the future. Use isStatusError() to capture the entire category.
+     */
+    public static final int STATUS_UNKNOWN_ERROR = 491;
+
+    /**
+     * This download couldn't be completed because of a storage issue.
+     * Typically, that's because the filesystem is missing or full.
+     * Use the more specific {@link #STATUS_INSUFFICIENT_SPACE_ERROR}
+     * and {@link #STATUS_DEVICE_NOT_FOUND_ERROR} when appropriate.
+     */
+    public static final int STATUS_FILE_ERROR = 492;
+
+    /**
+     * This download couldn't be completed because of an HTTP
+     * redirect response that the download manager couldn't
+     * handle.
+     */
+    public static final int STATUS_UNHANDLED_REDIRECT = 493;
+
+    /**
+     * This download couldn't be completed because of an
+     * unspecified unhandled HTTP code.
+     */
+    public static final int STATUS_UNHANDLED_HTTP_CODE = 494;
+
+    /**
+     * This download couldn't be completed because of an
+     * error receiving or processing data at the HTTP level.
+     */
+    public static final int STATUS_HTTP_DATA_ERROR = 495;
+
+    /**
+     * This download couldn't be completed because of an
+     * HttpException while setting up the request.
+     */
+    public static final int STATUS_HTTP_EXCEPTION = 496;
+
+    /**
+     * This download couldn't be completed because there were
+     * too many redirects.
+     */
+    public static final int STATUS_TOO_MANY_REDIRECTS = 497;
+
+    /**
+     * This download has failed because requesting application has been
+     * blocked by {@link NetworkPolicyManager}.
+     *
+     * @hide
+     * @deprecated since behavior now uses
+     *             {@link #STATUS_WAITING_FOR_NETWORK}
+     */
+    @Deprecated
+    public static final int STATUS_BLOCKED = 498;
 
     /**
      * 错误
@@ -152,7 +268,7 @@ public class Downloads {
         public static final String URL = "url";
         public static final String HEADERS = "headers";
         public static final String POSTS = "posts";
-        public static final String IS_SSL_MUTUAL = "is_ssl_mutual";
+        public static final String SSL_MUTUAL = "ssl_mutual";
         public static final String KEY_STORE_ID = "keyStore_id";
         public static final String TRUST_STORE_ID = "trustStore_id";
         public static final String KEY_STORE_PASS = "keyStore_pass";
@@ -166,7 +282,7 @@ public class Downloads {
         public static final String TOTAL_BYTES = "total_bytes";
         public static final String CURRENT_BYTES = "current_bytes";
         public static final String STATUS = "status";
-        public static final String IS_DELETED = "is_deleted";
+        public static final String DELETED = "deleted";
         public static final String ALLOWED_NETWORK_TYPES = "allowed_network_types";
         public static final String VISIBILITY = "visibility";
         public static final String ERROR = "error";
