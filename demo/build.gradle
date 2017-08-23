@@ -18,12 +18,15 @@ android {
         }
     }
 }
-
+allprojects {
+    repositories {
+        maven { url 'http://repo1.maven.org/maven2' }
+    }
+}
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
-    testCompile 'junit:junit:4.12'
     compile project(path: ':BaseLibrary')
     compile project(path: ':AppModule')
-    compile project(path: ':UserInterface')
     compile project(path: ':DownloadModule')
+    compile 'com.android.support:appcompat-v7:24.0.0-beta1'
 }

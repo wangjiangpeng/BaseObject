@@ -1,1 +1,1 @@
-include ':BaseLibrary', ':demo', ':AppModule', ':UserInterface', ':DownloadModule'
+include ':BaseLibrary', ':demo', ':AppModule', ':DownloadModule'

@@ -262,7 +262,7 @@ public class DownloadManager {
     private static class DownloadObserver extends ContentObserver {
 
         /**
-         * Creates a content observer.
+         * 创建一个观察者
          *
          * @param handler The handler to run {@link #onChange} on, or null if none.
          */

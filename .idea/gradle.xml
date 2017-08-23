@@ -12,7 +12,6 @@
             <option value="$PROJECT_DIR$/AppModule" />
             <option value="$PROJECT_DIR$/BaseLibrary" />
             <option value="$PROJECT_DIR$/DownloadModule" />
-            <option value="$PROJECT_DIR$/UserInterface" />
             <option value="$PROJECT_DIR$/demo" />
           </set>
         </option>
