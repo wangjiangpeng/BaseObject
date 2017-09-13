@@ -39,25 +39,20 @@ public class ModuleManager {
     }
 
     /**
-     * 模块的初始化和加载
+     * 添加模块
+     *
+     * @param module
+     */
+    public void addModule(Module module) {
+        moduleMap.put(module.getClass().getName(), module);
+    }
+
+    /**
+     * 模块的加载
      * 先从apk包中过滤出继承module的类，然后再加载模块，过滤类大概用了0.5s，后期可优化
      * 初始化和加载分开，防止部分模块加载过久，导致阻塞过长
      */
     public void initLoad() {
-        // 先初始化
-        List<String> classes = getExtendsModuleClasses();
-        for (String name : classes) {
-            try {
-                Class cls = Class.forName(name);
-                Module module = (Module) cls.newInstance();
-                moduleMap.put(name, module);
-                notEmpty.notifyAll();
-
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-        // 再加载模块
         Set<String> set = moduleMap.keySet();
         for (String key : set) {
             Module module = moduleMap.get(key);
@@ -74,45 +69,10 @@ public class ModuleManager {
      */
     public <D extends Module> D getModule(Class<D> cls) {
         D module;
-        while ((module = (D) moduleMap.get(cls.getName())) == null) {
-            try {
-                synchronized (notEmpty) {
-                    notEmpty.wait();
-                }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+        if ((module = (D) moduleMap.get(cls.getName())) == null) {
+            throw new RuntimeException("not found module, please add " + cls.getName());
         }
         return module;
-    }
-
-    /**
-     * 获得apk包中的所有实现Module的类
-     *
-     * @return
-     */
-    private List<String> getExtendsModuleClasses() {
-        List<String> list = new ArrayList<>();
-        try {
-            BaseApplication application = BaseApplication.getInstance();
-            DexFile dexFile = new DexFile(application.getPackageCodePath());
-            Enumeration<String> enumeration = dexFile.entries();
-            while (enumeration.hasMoreElements()) {
-                String className = enumeration.nextElement();
-                try {
-                    Class cls = Class.forName(className);
-                    if (Module.class.isAssignableFrom(cls) && !Module.class.equals(cls)) {
-                        list.add(className);
-                    }
-                } catch (Throwable e) {
-                    e.printStackTrace();
-                }
-            }
-
-        } catch (Throwable e) {
-            e.printStackTrace();
-        }
-        return list;
     }
 
 }

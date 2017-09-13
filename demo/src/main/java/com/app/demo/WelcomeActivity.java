@@ -15,9 +15,7 @@ import base.library.task.TaskService;
  * Created by wangjiangpeng01 on 2017/5/23.
  */
 
-public class WelcomeActivity extends Activity implements TaskCallback, TaskProgress {
-
-    private TextView initView;
+public class WelcomeActivity extends Activity implements TaskCallback {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -25,11 +23,8 @@ public class WelcomeActivity extends Activity implements TaskCallback, TaskProgr
 
         setContentView(R.layout.welcome);
 
-        initView = (TextView) findViewById(R.id.welcome_init);
-
         EnvInitTask task = TaskService.getInstance().getTask(EnvInitTask.class);
         task.setTaskCallback(this);
-        task.setTaskProgress(this);
         task.executeSerial();
     }
 
@@ -39,8 +34,4 @@ public class WelcomeActivity extends Activity implements TaskCallback, TaskProgr
         finish();
     }
 
-    @Override
-    public void onProgressUpdate(ATask task, Object value) {
-        initView.setText((String) value);
-    }
 }
