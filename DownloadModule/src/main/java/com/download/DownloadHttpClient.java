@@ -37,6 +37,7 @@ import static java.net.HttpURLConnection.HTTP_SEE_OTHER;
 import static java.net.HttpURLConnection.HTTP_UNAVAILABLE;
 
 /**
+ * 下载
  * Created by wangjiangpeng01 on 2017/5/10.
  */
 
@@ -99,8 +100,12 @@ public class DownloadHttpClient extends HttpClient {
                 mInfo.setTotalBytes(mInfo.getCurrentBytes());
             }
 
+            mInfo.setStatus(Downloads.STATUS_SUCCESS);
+
         } catch (StopRequestException e) {
 
+        } finally {
+            writeToDatabaseOrThrow();
         }
     }
 

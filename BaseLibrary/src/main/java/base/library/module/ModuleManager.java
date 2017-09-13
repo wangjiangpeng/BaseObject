@@ -76,7 +76,9 @@ public class ModuleManager {
         D module;
         while ((module = (D) moduleMap.get(cls.getName())) == null) {
             try {
-                notEmpty.wait();
+                synchronized (notEmpty) {
+                    notEmpty.wait();
+                }
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }

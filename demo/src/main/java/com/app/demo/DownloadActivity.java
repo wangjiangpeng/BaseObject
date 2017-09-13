@@ -12,6 +12,7 @@ import com.download.DownloadModule;
 import java.util.List;
 
 import base.library.BaseActivity;
+import base.library.MLog;
 import base.library.module.ModuleManager;
 
 /**
@@ -40,9 +41,9 @@ public class DownloadActivity extends BaseActivity implements OnClickListener {
             case R.id.download_enqueue:
                 DownloadManager.Request request = new DownloadManager.Request();
                 request.setUrl("http://gh-pages.clockworkmod.com/ROMManagerManifest/devices.js");
-                request.setFileName("/mnt/sdcard/demo.js");
+                request.setFileName("/mnt/sdcard/temp/demo.js");
                 id = manager.enqueue(request);
-                Log.e("WJP", "id" + id);
+                MLog.e("WJP", "id" + id);
                 break;
 
             case R.id.download_deleted:
@@ -56,7 +57,7 @@ public class DownloadActivity extends BaseActivity implements OnClickListener {
             case R.id.download_query:
                 List<DownloadInfo> list = manager.query();
                 for (DownloadInfo info : list) {
-                    Log.e("WJP", "id:" + info.getId() + " status:" + info.getStatus());
+                    MLog.e("WJP", "id:" + info.getId() + " status:" + info.getStatus());
                 }
                 break;
         }
